@@ -12,14 +12,17 @@ use App\Entity\Specialty;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use App\Entity\ProService;
-use App\State\ProfessionnalProcessor;
+use App\State\ProfessionalProcessor;
 use App\Enum\ProfessionalStatus;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProfessionalRepository::class)]
 #[ApiResource(
-    processor: ProfessionnalProcessor::class
+    processor: ProfessionalProcessor::class,
+    normalizationContext: ['groups' => ['professional:read']], // Pour la lecture (GET)
+    denormalizationContext: ['groups' => ['professional:write']], // Pour l'écriture (POST/PATCH)
 )]
 #[ApiFilter(SearchFilter::class, properties: ['departmentCode' => 'exact'])]
 class Professional
@@ -27,6 +30,7 @@ class Professional
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['professional:read'])]
     private ?int $id = null;
 
     // =========================================================================
@@ -35,6 +39,7 @@ class Professional
 
     #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'professional', cascade: ['persist', 'remove'])]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['professional:read'])] // En lecture, on pourra voir les infos du User lié
     private ?User $user = null;
 
     // =========================================================================
@@ -42,25 +47,31 @@ class Professional
     // =========================================================================
 
     #[ORM\Column(length: 255)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $firstName = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $lastName = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $avatarPath = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $biography = null;
 
     #[ORM\ManyToOne(targetEntity: JobTitle::class)]
     #[ORM\JoinColumn(nullable: false)] // Un pro DOIT avoir un métier
+    #[Groups(['professional:read', 'professional:write'])]
     private ?JobTitle $jobTitle = null;
 
     /**
      * @var Collection<int, Specialty>
      */
     #[ORM\ManyToMany(targetEntity: Specialty::class)]
+    #[Groups(['professional:read', 'professional:write'])]
     private Collection $specialties;
 
     // =========================================================================
@@ -68,15 +79,19 @@ class Professional
     // =========================================================================
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $address = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $city = null;
 
     #[ORM\Column(length: 20, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $zipCode = null;
 
     #[ORM\Column(length: 5, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $departmentCode = null;
 
     // =========================================================================
@@ -84,18 +99,23 @@ class Professional
     // =========================================================================
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $companyName = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $siretNumber = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $billingAddress = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?string $stripeAccountId = null;
 
     #[ORM\Column(type: 'boolean')]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?bool $isStripeVerified = false;
 
     // =========================================================================
@@ -103,32 +123,41 @@ class Professional
     // =========================================================================
 
     #[ORM\Column]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?int $standardDelayDays = 7;
 
     #[ORM\Column(type: 'boolean')]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?bool $isExpressEnabled = false;
 
     #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?float $expressPremiumPercent = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?int $maxActiveOrders = null;
 
     #[ORM\Column(enumType: ProfessionalStatus::class)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ProfessionalStatus $status = ProfessionalStatus::PENDING; // <--- Par défaut : EN ATTENTE
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Groups(['professional:read', 'professional:write'])]
     private ?\DateTimeInterface $unavailableUntil = null;
 
     #[ORM\OneToMany(mappedBy: 'professional', targetEntity: ProService::class, cascade: ['persist', 'remove'])]
+    #[Groups(['professional:read', 'professional:write'])]
     private Collection $proServices;
 
     // --- CHAMPS VIRTUELS POUR L'INSCRIPTION (Non stockés en base) ---
     
     #[ApiProperty(readable: false, writable: true)]
+    #[Groups(['professional:write'])]
     private ?string $email = null;
 
     #[ApiProperty(readable: false, writable: true)]
+    #[Groups(['professional:write'])]
     private ?string $plainPassword = null;
 
     public function __construct()
@@ -350,7 +379,7 @@ class Professional
     }
 
     public function setStatus(ProfessionalStatus $status): static
-    {
+    {       
         $this->status = $status;
 
         return $this;

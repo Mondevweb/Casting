@@ -9,9 +9,29 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use App\Entity\Analysis;
+use Symfony\Component\Serializer\Attribute\Groups;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Patch;
+use ApiPlatform\Metadata\Delete;
 
 #[ORM\Entity(repositoryClass: OrderLineRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['order:read']], 
+    denormalizationContext: ['groups' => ['order:write']],
+    
+    operations: [
+        // On autorise à voir une ligne seule (par son ID)
+        new Get(),
+        // On autorise la création (souvent utile si le front ajoute item par item)
+        new Post(),
+        // On autorise la modification (changer la quantité, changer les instructions)
+        new Patch(),
+        // On autorise la suppression (retirer du panier)
+        new Delete(),
+        // ⚠️ PAS DE GetCollection() ! On ne veut pas lister toutes les lignes du monde.
+    ]
+)]
 class OrderLine
 {
     #[ORM\Id]
@@ -29,6 +49,7 @@ class OrderLine
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['order:read', 'order:write'])]
     private ?AbstractServiceType $serviceType = null; // Le type de service (Photo, Vidéo...)
 
     // =========================================================================

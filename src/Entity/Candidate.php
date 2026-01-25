@@ -12,16 +12,20 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use App\State\CandidateProcessor;
 use App\Entity\Order;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: CandidateRepository::class)]
 #[ApiResource(
-    processor: CandidateProcessor::class
+    processor: CandidateProcessor::class,
+    normalizationContext: ['groups' => ['candidate:read']], // Pour la lecture (GET)
+    denormalizationContext: ['groups' => ['candidate:write']], // Pour l'écriture (POST/PATCH)
 )]
 class Candidate
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['candidate:read'])]
     private ?int $id = null;
 
     // =========================================================================
@@ -30,6 +34,7 @@ class Candidate
 
     #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'candidate', cascade: ['persist', 'remove'])]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['candidate:read'])]
     private ?User $user = null;
 
     // =========================================================================
@@ -37,18 +42,23 @@ class Candidate
     // =========================================================================
 
     #[ORM\Column(length: 255)]
+    #[Groups(['candidate:read', 'candidate:write'])]
     private ?string $firstName = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['candidate:read', 'candidate:write'])]
     private ?string $lastName = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['candidate:read', 'candidate:write'])]
     private ?string $gender = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    #[Groups(['candidate:read', 'candidate:write'])]
     private ?\DateTimeInterface $birthDate = null;
 
     #[ORM\Column(length: 20, nullable: true)]
+    #[Groups(['candidate:read', 'candidate:write'])]
     private ?string $phoneNumber = null;
 
     // =========================================================================
@@ -56,18 +66,22 @@ class Candidate
     // =========================================================================
 
     #[ORM\OneToMany(mappedBy: 'candidate', targetEntity: MediaObject::class, cascade: ['persist', 'remove'])]
+    #[Groups(['candidate:read', 'candidate:write'])]
     private Collection $mediaObjects;
+
+    #[ORM\OneToMany(mappedBy: 'candidate', targetEntity: Order::class)]
+    #[Groups(['candidate:read', 'candidate:write'])]
+    private Collection $orders;
 
     // --- CHAMPS VIRTUELS POUR L'INSCRIPTION (Non stockés en base) ---
     
     #[ApiProperty(readable: false, writable: true)]
+    #[Groups(['candidate:write'])]
     private ?string $email = null;
 
     #[ApiProperty(readable: false, writable: true)]
+    #[Groups(['candidate:write'])]
     private ?string $plainPassword = null;
-
-    #[ORM\OneToMany(mappedBy: 'candidate', targetEntity: Order::class)]
-    private Collection $orders;
 
     public function __construct()
     {

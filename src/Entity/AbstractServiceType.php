@@ -8,6 +8,7 @@ use ApiPlatform\Metadata\GetCollection;
 use App\Repository\AbstractServiceTypeRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: AbstractServiceTypeRepository::class)]
 #[ORM\InheritanceType('JOINED')]
@@ -17,6 +18,7 @@ use Doctrine\ORM\Mapping as ORM;
     'duration' => DurationServiceType::class
 ])]
 #[ApiResource(
+    normalizationContext: ['groups' => ['service:read']],
     operations: [
         new Get(),
         new GetCollection()
@@ -30,18 +32,23 @@ abstract class AbstractServiceType
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['service:read', 'professional:read'])]
     private ?string $name = null; // Ex: "Photos", "Bande Démo"
 
     #[ORM\Column(length: 255)]
+    #[Groups(['service:read', 'professional:read'])]
     private ?string $slug = null; // Ex: "photos", "demo-reel"
 
     #[ORM\Column(type: 'boolean')]
+    #[Groups(['service:read', 'professional:read'])]
     private ?bool $isActive = true;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['service:read', 'professional:read'])]
     private ?string $description = null;
 
     #[ORM\Column(type: 'boolean')]
+    #[Groups(['service:read', 'professional:read'])]
     private ?bool $isExpressAllowed = false; // Peut-on demander du 48h ?
 
     public function getId(): ?int

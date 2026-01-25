@@ -5,9 +5,18 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\UnitServiceTypeRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
 
 #[ORM\Entity(repositoryClass: UnitServiceTypeRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['service:read']], // On active le groupe
+    operations: [
+        new Get(),
+        new GetCollection()
+    ]
+)]
 class UnitServiceType extends AbstractServiceType
 {
     // =========================================================================
@@ -15,9 +24,11 @@ class UnitServiceType extends AbstractServiceType
     // =========================================================================
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $libraryQuota = null; // Nb max de fichiers stockables
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $maxWeightMb = null; // Poids max par fichier (MB)
 
     // =========================================================================
@@ -25,9 +36,11 @@ class UnitServiceType extends AbstractServiceType
     // =========================================================================
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $orderMinQty = 1;
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $orderMaxQty = 10;
 
     // =========================================================================
@@ -35,6 +48,7 @@ class UnitServiceType extends AbstractServiceType
     // =========================================================================
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $baseQuantity = 1; // Le forfait de base inclut X photos
 
     // =========================================================================

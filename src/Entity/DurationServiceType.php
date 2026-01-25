@@ -5,9 +5,18 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\DurationServiceTypeRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
 
 #[ORM\Entity(repositoryClass: DurationServiceTypeRepository::class)]
-#[ApiResource]
+#[ApiResource(
+    normalizationContext: ['groups' => ['service:read']], // On active le groupe
+    operations: [
+        new Get(),
+        new GetCollection()
+    ]
+)]
 class DurationServiceType extends AbstractServiceType
 {
     // =========================================================================
@@ -15,9 +24,11 @@ class DurationServiceType extends AbstractServiceType
     // =========================================================================
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $libraryQuota = null;
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $maxWeightMb = null;
 
     // =========================================================================
@@ -25,9 +36,11 @@ class DurationServiceType extends AbstractServiceType
     // =========================================================================
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $orderMinFiles = 1; // Min de fichiers à envoyer
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $orderMaxFiles = 1; // Max de fichiers à envoyer
 
     // =========================================================================
@@ -35,6 +48,7 @@ class DurationServiceType extends AbstractServiceType
     // =========================================================================
 
     #[ORM\Column]
+    #[Groups(['service:read'])]
     private ?int $baseDurationMin = 2; // Le forfait inclut X minutes
 
     // =========================================================================

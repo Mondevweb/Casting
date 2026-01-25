@@ -8,6 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Gedmo\Mapping\Annotation as Gedmo;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\UniqueConstraint(name: 'UNIQ_IDENTIFIER_EMAIL', fields: ['email'])]
@@ -18,21 +19,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['professional:read', 'candidate:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180)]
+    #[Groups(['professional:read', 'professional:write', 'candidate:read', 'candidate:write'])]
     private ?string $email = null;
 
     /**
      * @var list<string> The user roles
      */
     #[ORM\Column]
+    // On peut vouloir lire les rôles pour savoir si on est Admin ou pas
+    #[Groups(['professional:read', 'candidate:read'])]
     private array $roles = [];
 
     /**
      * @var string The hashed password
      */
     #[ORM\Column]
+    // PAS DE GROUPE ICI ! On ne veut jamais lire ni écrire le hash directement.
     private ?string $password = null;
 
     // --- MODIFICATION 3 : Ajout des relations (Inverse side) ---
@@ -47,6 +53,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     // Source 3.1: is_verified (Bool)
     #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    #[Groups(['professional:read', 'candidate:read'])]
     private ?bool $isVerified = false;
 
     // Source 3.1: created_at
