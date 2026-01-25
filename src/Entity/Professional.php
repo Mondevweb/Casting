@@ -62,7 +62,7 @@ class Professional
     #[Groups(['professional:read', 'professional:write'])]
     private ?string $biography = null;
 
-    #[ORM\ManyToOne(targetEntity: JobTitle::class)]
+    #[ORM\ManyToOne(targetEntity: JobTitle::class, inversedBy: 'professionals')]
     #[ORM\JoinColumn(nullable: false)] // Un pro DOIT avoir un métier
     #[Groups(['professional:read', 'professional:write'])]
     private ?JobTitle $jobTitle = null;
