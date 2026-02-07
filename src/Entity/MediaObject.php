@@ -162,7 +162,7 @@ class MediaObject
 
     public function getDuration(): ?int
     {
-        return $this->duration;
+        return isset($this->duration) ? $this->duration : null;
     }
 
     public function setDuration(?int $duration): static

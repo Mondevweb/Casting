@@ -13,32 +13,41 @@ use App\Entity\OrderLine;
 use App\Entity\OrderConclusion;
 use App\Entity\Dispute;
 use App\State\OrderProcessor;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: OrderRepository::class)]
 #[ORM\Table(name: '`order`')] // "order" est un mot réservé SQL, il faut l'échapper
 #[ApiResource(
-    processor: OrderProcessor::class // <--- C'est ici qu'on branche notre logique
+    processor: OrderProcessor::class,
+    denormalizationContext: ['groups' => ['order:write']],
+    normalizationContext: ['groups' => ['order:read']]
 )]
 class Order
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['order:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255, unique: true)]
+    #[Groups(['order:read'])]
     private ?string $reference = null; // Un ID unique lisible (ex: ORD-2026-XYZ)
 
     // =========================================================================
     // RELATIONS ACTEURS (Source 85)
     // =========================================================================
 
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: false)]
+    #[ApiProperty(readableLink: false, writableLink: false)]
+    #[Groups(['order:read', 'order:write'])]
     private ?Candidate $candidate = null;
 
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: false)]
+    #[ApiProperty(readableLink: false, writableLink: false)]
+    #[Groups(['order:read', 'order:write'])]
     private ?Professional $professional = null;
 
     // =========================================================================
@@ -49,6 +58,8 @@ class Order
      * @var Collection<int, OrderLine>
      */
     #[ORM\OneToMany(mappedBy: 'order', targetEntity: OrderLine::class, cascade: ['persist', 'remove'])]
+    #[ApiProperty(writableLink: true)]
+    #[Groups(['order:read', 'order:write'])]
     private Collection $orderLines;
 
     // =========================================================================
@@ -56,18 +67,23 @@ class Order
     // =========================================================================
 
     #[ORM\Column(length: 50, enumType: OrderStatus::class)]
+    #[Groups(['order:read', 'order:write'])]
     private ?OrderStatus $status = OrderStatus::CART;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
+    #[Groups(['order:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    #[Groups(['order:read'])]
     private ?\DateTimeImmutable $paidAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    #[Groups(['order:read'])]
     private ?\DateTimeImmutable $deliveredAt = null;
 
     #[ORM\Column(type: 'boolean')]
+    #[Groups(['order:read', 'order:write'])]
     private ?bool $isExpress = false;
 
     // =========================================================================
@@ -75,6 +91,7 @@ class Order
     // =========================================================================
 
     #[ORM\Column(type: Types::INTEGER)]
+    #[Groups(['order:read'])]
     private ?int $totalAmountTtc = null; // Payé par le candidat (en centimes)
 
     #[ORM\Column(type: Types::FLOAT)]

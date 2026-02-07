@@ -25,11 +25,11 @@ class UnitServiceType extends AbstractServiceType
 
     #[ORM\Column]
     #[Groups(['service:read'])]
-    private ?int $libraryQuota = null; // Nb max de fichiers stockables
+    private ?int $libraryQuota = 50; // Nb max de fichiers stockables
 
     #[ORM\Column]
     #[Groups(['service:read'])]
-    private ?int $maxWeightMb = null; // Poids max par fichier (MB)
+    private ?int $maxWeightMb = 50; // Poids max par fichier (MB)
 
     // =========================================================================
     // RÈGLES DE COMMANDE (Source 31)

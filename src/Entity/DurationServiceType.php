@@ -25,11 +25,11 @@ class DurationServiceType extends AbstractServiceType
 
     #[ORM\Column]
     #[Groups(['service:read'])]
-    private ?int $libraryQuota = null;
+    private ?int $libraryQuota = 10;
 
     #[ORM\Column]
     #[Groups(['service:read'])]
-    private ?int $maxWeightMb = null;
+    private ?int $maxWeightMb = 500;
 
     // =========================================================================
     // RÈGLES DE COMMANDE (Source 36)

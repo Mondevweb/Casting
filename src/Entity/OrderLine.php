@@ -52,6 +52,9 @@ class OrderLine
     #[Groups(['order:read', 'order:write'])]
     private ?AbstractServiceType $serviceType = null; // Le type de service (Photo, Vidéo...)
 
+    #[ORM\ManyToOne]
+    private ?ProService $service = null; // Le service pro lié (pour le prix)
+
     // =========================================================================
     // CONTENU À ANALYSER (Source 101)
     // =========================================================================
@@ -60,6 +63,7 @@ class OrderLine
      * @var Collection<int, MediaObject>
      */
     #[ORM\ManyToMany(targetEntity: MediaObject::class)]
+    #[Groups(['order:read', 'order:write'])]
     private Collection $mediaObjects;
 
     // =========================================================================
@@ -69,9 +73,11 @@ class OrderLine
     // demain, cette commande ne doit pas bouger.
 
     #[ORM\Column(type: Types::INTEGER)]
+    #[Groups(['order:read'])]
     private ?int $unitPriceFrozen = null; // Prix unitaire figé
 
     #[ORM\Column(type: Types::INTEGER)]
+    #[Groups(['order:read'])]
     private ?int $basePriceFrozen = null; // Prix forfait figé
 
     // =========================================================================
@@ -79,12 +85,15 @@ class OrderLine
     // =========================================================================
 
     #[ORM\Column]
+    #[Groups(['order:read', 'order:write'])]
     private ?int $quantityBilled = null; // Nb photos ou Minutes facturées
 
     #[ORM\Column(type: Types::INTEGER)]
+    #[Groups(['order:read'])]
     private ?int $lineTotalAmount = null; // Total de la ligne
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['order:read', 'order:write'])]
     private ?string $instructions = null; // Le message du candidat pour cette ligne
 
     // =========================================================================
@@ -130,6 +139,17 @@ class OrderLine
     public function setServiceType(?AbstractServiceType $serviceType): static
     {
         $this->serviceType = $serviceType;
+        return $this;
+    }
+
+    public function getService(): ?ProService
+    {
+        return $this->service;
+    }
+
+    public function setService(?ProService $service): static
+    {
+        $this->service = $service;
         return $this;
     }
 
