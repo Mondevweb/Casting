@@ -53,6 +53,7 @@ class OrderLine
     private ?AbstractServiceType $serviceType = null; // Le type de service (Photo, Vidéo...)
 
     #[ORM\ManyToOne]
+    #[Groups(['order:write'])]
     private ?ProService $service = null; // Le service pro lié (pour le prix)
 
     // =========================================================================

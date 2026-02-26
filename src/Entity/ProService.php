@@ -6,6 +6,7 @@ use ApiPlatform\Metadata\ApiResource;
 use App\Repository\ProServiceRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProServiceRepository::class)]
 #[ApiResource]
@@ -14,6 +15,7 @@ class ProService
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['professional:read'])]
     private ?int $id = null;
 
     // =========================================================================
@@ -26,6 +28,7 @@ class ProService
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['professional:read'])]
     private ?AbstractServiceType $serviceType = null;
 
     // =========================================================================
@@ -33,12 +36,15 @@ class ProService
     // =========================================================================
 
     #[ORM\Column(type: 'boolean')]
+    #[Groups(['professional:read'])]
     private ?bool $isActive = false; // Le pro propose-t-il ce service actuellement ?
 
     #[ORM\Column(type: Types::INTEGER)]
+    #[Groups(['professional:read'])]
     private ?int $basePrice = null; // Prix du forfait (en centimes ou euros selon votre choix, ici Int = centimes souvent)
 
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
+    #[Groups(['professional:read'])]
     private ?int $supplementPrice = null; // Prix unitaire/minute sup
 
     // =========================================================================

@@ -51,9 +51,24 @@ class UnitServiceType extends AbstractServiceType
     #[Groups(['service:read'])]
     private ?int $baseQuantity = 1; // Le forfait de base inclut X photos
 
+    #[ORM\Column(length: 50)]
+    #[Groups(['service:read'])]
+    private ?string $unitName = null; // ex: "photo", "page", "minute"
+
     // =========================================================================
     // GETTERS & SETTERS
     // =========================================================================
+
+    public function getUnitName(): ?string
+    {
+        return $this->unitName;
+    }
+
+    public function setUnitName(string $unitName): static
+    {
+        $this->unitName = $unitName;
+        return $this;
+    }
 
     public function getLibraryQuota(): ?int
     {

@@ -112,6 +112,12 @@
             "./config/packages/stof_doctrine_extensions.yaml"
         ]
     },
+    "stripe/stripe-php": {
+        "version": "19.3",
+        "recipe": {
+            "version": "19.0"
+        }
+    },
     "symfony/apache-pack": {
         "version": "1.0",
         "recipe": {
@@ -402,7 +408,16 @@
             "./config/packages/messenger.yaml"
         ]
     },
+    "symfony/workflow": {
+        "version": "7.4",
+        "recipe": {
+            "version": "3.3"
+        }
+    },
     "twig/extra-bundle": {
         "version": "v3.22.2"
+    },
+    "vich/uploader-bundle": {
+        "version": "v2.9.1"
     }
 }

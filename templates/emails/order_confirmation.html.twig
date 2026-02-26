@@ -1,0 +1,20 @@
+<h1>Confirmation de commande</h1>
+
+<p>Bonjour {{ candidateName }},</p>
+
+<p>Merci pour votre commande référence <strong>{{ orderReference }}</strong>.</p>
+
+<p>Votre paiement a bien été validé.</p>
+
+<h2>Détails :</h2>
+<ul>
+    {% for line in orderLines %}
+        <li>
+            {{ line.serviceName }} ({{ line.quantity }})
+        </li>
+    {% endfor %}
+</ul>
+
+<p>Le professionnel a été notifié et va commencer la prestation.</p>
+
+<p>L'équipe Casting App.</p>

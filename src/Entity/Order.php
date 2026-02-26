@@ -20,7 +20,36 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     processor: OrderProcessor::class,
     denormalizationContext: ['groups' => ['order:write']],
-    normalizationContext: ['groups' => ['order:read']]
+    normalizationContext: ['groups' => ['order:read']],
+    operations: [
+        new \ApiPlatform\Metadata\Get(
+            security: "object.getCandidate().getUser() === user or object.getProfessional().getUser() === user or is_granted('ROLE_ADMIN')"
+        ),
+        new \ApiPlatform\Metadata\GetCollection(
+            // La sécurité des colections se gère souvent via un Extension (QueryExtension) pour filtrer les résultats
+            // Mais on peut déjà bloquer l'accès général si besoin. Ici on laisse ouvert mais on filtrera via une Extension plus tard si on veut être propre.
+            // Pour l'instant, on va sécuriser via le state provider ou une extension.
+            // Simplification : On interdit GetCollection public, on laisse que pour Admin ? 
+            // Non, un user veut voir SES commandes.
+            // On va utiliser 'security' post-denormalize ? Non, c'est du GET.
+            // Le mieux est de créer une DoctrineExtension pour filtrer les requêtes automatiquement.
+        ),
+        new \ApiPlatform\Metadata\Post(
+            security: "is_granted('ROLE_CANDIDATE')"
+        ),
+        new \ApiPlatform\Metadata\Patch(
+             security: "object.getCandidate().getUser() === user or object.getProfessional().getUser() === user"
+        ),
+        new \ApiPlatform\Metadata\Post(
+            uriTemplate: '/orders/{id}/pay',
+            controller: \App\Controller\OrderPaymentController::class,
+            denormalizationContext: ['groups' => []], // Pas de body attendu ou spécifique
+            read: true,
+            description: 'Initiate payment for an order',
+            name: 'pay_order',
+            security: "object.getCandidate().getUser() === user"
+        )
+    ]
 )]
 class Order
 {

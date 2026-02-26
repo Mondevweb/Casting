@@ -18,7 +18,8 @@ class OrderProcessor implements ProcessorInterface
         private ProcessorInterface $persistProcessor,
         private \App\Service\OrderPriceCalculator $calculator,
         private \Symfony\Component\HttpFoundation\RequestStack $requestStack,
-        private \Doctrine\ORM\EntityManagerInterface $entityManager
+        private \App\Service\OrderPreparationService $orderPreparationService,
+        private \Symfony\Bundle\SecurityBundle\Security $security
     ) {
     }
 
@@ -27,111 +28,23 @@ class OrderProcessor implements ProcessorInterface
         // On vérifie qu'on traite bien une Commande
         if ($data instanceof Order) {
             
-            // WORKAROUND: Force hydration of Candidate/Professional if null (Deserializer issues)
+            // DELEGATION: Hydratation manuelle & Validation via Service dédié
             $request = $this->requestStack->getCurrentRequest();
-            if ($request) {
-                $payload = $request->toArray(); // Works for JSON/LD-JSON typically
-                
-                if ($data->getCandidate() === null && isset($payload['candidate'])) {
-                    // Extract ID from IRI: /api/candidates/123 -> 123
-                    if (preg_match('/\/(\d+)$/', $payload['candidate'], $matches)) {
-                        $candidate = $this->entityManager->getReference(\App\Entity\Candidate::class, (int)$matches[1]);
-                        $data->setCandidate($candidate);
-                    }
-                }
-
-                if ($data->getProfessional() === null && isset($payload['professional'])) {
-                    if (preg_match('/\/(\d+)$/', $payload['professional'], $matches)) {
-                        $professional = $this->entityManager->getReference(\App\Entity\Professional::class, (int)$matches[1]);
-                        $data->setProfessional($professional);
-                    }
-                }
-
-                if ($data->getOrderLines()->isEmpty() && isset($payload['orderLines']) && is_array($payload['orderLines'])) {
-                    foreach ($payload['orderLines'] as $lineData) {
-                        $line = new \App\Entity\OrderLine();
-                        
-                        // Service Type (Unit or Duration)
-                        if (isset($lineData['serviceType'])) {
-                            // Try both types or abstract? Abstract is abstract. We know IDs are unique across tables usually? 
-                            // Actually, getReference needs specific class.
-                            // The URI tells us the class! /api/unit_service_types/1 or /api/duration_service_types/2
-                            if (str_contains($lineData['serviceType'], 'unit_service_types')) {
-                                $cls = \App\Entity\UnitServiceType::class;
-                            } elseif (str_contains($lineData['serviceType'], 'duration_service_types')) {
-                                $cls = \App\Entity\DurationServiceType::class;
-                            } else {
-                                $cls = \App\Entity\AbstractServiceType::class; // Fallback? Might fail if mapped superclass
-                            }
-
-                            if (preg_match('/\/(\d+)$/', $lineData['serviceType'], $matches)) {
-                                $st = $this->entityManager->getReference($cls, (int)$matches[1]);
-                                $line->setServiceType($st);
-                            }
-                        }
-
-                        // Quantity
-                        if (isset($lineData['quantityBilled'])) {
-                            $line->setQuantityBilled((int)$lineData['quantityBilled']);
-                        }
-
-                        // Media Objects
-                        if (isset($lineData['mediaObjects']) && is_array($lineData['mediaObjects'])) {
-                            foreach ($lineData['mediaObjects'] as $mediaUri) {
-                                if (preg_match('/\/(\d+)$/', $mediaUri, $matches)) {
-                                    $media = $this->entityManager->getReference(\App\Entity\MediaObject::class, (int)$matches[1]);
-                                    $line->addMediaObject($media);
-                                }
-                            }
-                        }
-                        
-                        // Pro Service?
-                        // Wait, OrderLine has `private ?ProService $service`.
-                        // But payload sends serviceType.
-                        // Ideally we should find the matching ProService for this Pro + ServiceType.
-                        // BUT for this test (Pricing), if logic uses $service->getBasePrice(), we NEED it.
-                        // The test creates a ProService.
-                        // How does `OrderPriceCalculator` find the price?
-                        // `calculateLinePrice` does `$service = $line->getService()`.
-                        // If `$service` is null, returns 0.
-                        // So we MUST link to `ProService`.
-                        
-                        // How do we find it?
-                        // Use repository to find ProService where professional = order.professional AND serviceType = line.serviceType.
-                        if ($data->getProfessional() && $line->getServiceType()) {
-                             $psRepo = $this->entityManager->getRepository(\App\Entity\ProService::class);
-                             $proService = $psRepo->findOneBy([
-                                 'professional' => $data->getProfessional(),
-                                 'serviceType' => $line->getServiceType()
-                             ]);
-                             if ($proService) {
-                                 $line->setService($proService);
-                             }
-                        }
-
-                        $data->addOrderLine($line);
-                    }
-                }
+            if ($request && $request->getContent()) {
+                // On récupère le payload brut
+                $payload = $request->toArray();
+                $this->orderPreparationService->prepareOrder($data, $payload);
+            } elseif ($data->getId() === null) {
+                // Cas rare : création sans payload JSON ? (Test interne ou autre)
+                // On tente quand même de valider si on peut
+                 $this->orderPreparationService->prepareOrder($data, []);
             }
 
-            // CORRECTION: Assurer le lien ProService pour TOUTES les lignes (hydratées manuellement OU par API Platform)
-            if ($data->getProfessional()) {
-                $psRepo = $this->entityManager->getRepository(\App\Entity\ProService::class);
-                foreach ($data->getOrderLines() as $line) {
-                    if ($line->getService() === null && $line->getServiceType() !== null) {
-                        $proService = $psRepo->findOneBy([
-                             'professional' => $data->getProfessional(),
-                             'serviceType' => $line->getServiceType()
-                        ]);
-                        if ($proService) {
-                             $line->setService($proService);
-                        } else {
-                            // DEBUG
-                            throw new \Exception("ProService NOT FOUND for ProID " . $data->getProfessional()->getId() . " ServiceType " . $line->getServiceType()->getId());
-                        }
-                    } elseif ($line->getServiceType() === null) {
-                        throw new \Exception("ServiceType is NULL on OrderLine!");
-                    }
+            // --- AUTO-ASSIGN CANDIDATE (Si pas dans payload) ---
+            if ($data->getCandidate() === null) {
+                $user = $this->security->getUser();
+                if ($user instanceof \App\Entity\User && $user->getCandidate()) {
+                    $data->setCandidate($user->getCandidate());
                 }
             }
 

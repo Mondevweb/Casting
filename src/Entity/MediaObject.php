@@ -7,22 +7,32 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Delete;
-use App\Enum\MediaCategory; // Import de l'Enum créé juste avant
-use App\Repository\MediaObjectRepository;
-use Doctrine\DBAL\Types\Types;
+use Vich\UploaderBundle\Mapping\Annotation as Vich;
+use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Doctrine\ORM\Mapping as ORM;
+use App\Enum\MediaCategory;
+use Doctrine\DBAL\Types\Types;
 use Symfony\Component\Validator\Constraints as Assert;
 use Gedmo\Mapping\Annotation as Gedmo;
 
 #[ORM\Entity(repositoryClass: MediaObjectRepository::class)]
 #[ApiResource(
+    types: ['https://schema.org/MediaObject'],
     operations: [
         new Get(),
         new GetCollection(),
-        new Post(), // L'upload se fera ici
+        new Post(
+            controller: \App\Controller\CreateMediaObjectAction::class, 
+            deserialize: false, 
+            validate: false,
+            inputFormats: ['multipart' => ['multipart/form-data']]
+        ),
         new Delete()
-    ]
+    ],
+    normalizationContext: ['groups' => ['media_object:read']]
 )]
+#[Vich\Uploadable]
 #[Gedmo\SoftDeleteable(fieldName: 'deletedAt', timeAware: false)]
 class MediaObject
 {
@@ -43,10 +53,19 @@ class MediaObject
     // FICHIER & MÉTDADONNÉES (Source 77, 78)
     // =========================================================================
 
-    #[ORM\Column(length: 255)]
+    #[Vich\UploadableField(mapping: 'media_object', fileNameProperty: 'filePath', size: 'size', mimeType: 'mimeType', originalName: 'originalName')]
+    private ?File $file = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['media_object:read', 'candidate:read'])]
+    private ?string $contentUrl = null; // Calculated field if needed, or use filePath with prefix
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['media_object:read'])]
     private ?string $filePath = null; // Le chemin S3 ou local (ex: /uploads/cv_jean.pdf)
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['media_object:read'])]
     private ?string $originalName = null;
 
     #[ORM\Column(length: 50, nullable: true)]
@@ -191,5 +210,21 @@ class MediaObject
     {
         $this->deletedAt = $deletedAt;
         return $this;
+    }
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $updatedAt = null;
+
+    public function setFile(?File $file = null): void
+    {
+        $this->file = $file;
+
+        if (null !== $file) {
+            $this->updatedAt = new \DateTimeImmutable();
+        }
+    }
+
+    public function getFile(): ?File
+    {
+        return $this->file;
     }
 }

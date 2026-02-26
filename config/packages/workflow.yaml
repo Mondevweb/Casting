@@ -1,0 +1,48 @@
+framework:
+    workflows:
+        order_lifecycle:
+            type: 'state_machine'
+            audit_trail:
+                enabled: true
+            marking_store:
+                type: 'method'
+                property: 'status'
+            supports:
+                - App\Entity\Order
+            initial_marking: !php/enum App\Enum\OrderStatus::CART
+            places:
+                - !php/enum App\Enum\OrderStatus::CART
+                - !php/enum App\Enum\OrderStatus::PENDING_PAYMENT
+                - !php/enum App\Enum\OrderStatus::PAID_PENDING_PRO
+                - !php/enum App\Enum\OrderStatus::IN_PROGRESS
+                - !php/enum App\Enum\OrderStatus::DELIVERED
+                - !php/enum App\Enum\OrderStatus::COMPLETED
+                - !php/enum App\Enum\OrderStatus::DISPUTE
+                - !php/enum App\Enum\OrderStatus::CANCELLED
+            transitions:
+                checkout:
+                    from: !php/enum App\Enum\OrderStatus::CART
+                    to:   !php/enum App\Enum\OrderStatus::PENDING_PAYMENT
+                payment_validated:
+                    from: !php/enum App\Enum\OrderStatus::PENDING_PAYMENT
+                    to:   !php/enum App\Enum\OrderStatus::PAID_PENDING_PRO
+                pro_validate: # Le pro valide la commande
+                    from: !php/enum App\Enum\OrderStatus::PAID_PENDING_PRO
+                    to:   !php/enum App\Enum\OrderStatus::IN_PROGRESS
+                pro_deliver:
+                    from: !php/enum App\Enum\OrderStatus::IN_PROGRESS
+                    to:   !php/enum App\Enum\OrderStatus::DELIVERED
+                customer_accept:
+                    from: !php/enum App\Enum\OrderStatus::DELIVERED
+                    to:   !php/enum App\Enum\OrderStatus::COMPLETED
+                dispute_open:
+                    from: !php/enum App\Enum\OrderStatus::DELIVERED
+                    to:   !php/enum App\Enum\OrderStatus::DISPUTE
+                dispute_resolve:
+                    from: !php/enum App\Enum\OrderStatus::DISPUTE
+                    to:   !php/enum App\Enum\OrderStatus::COMPLETED
+                cancel:
+                    from: 
+                        - !php/enum App\Enum\OrderStatus::CART
+                        - !php/enum App\Enum\OrderStatus::PENDING_PAYMENT
+                    to: !php/enum App\Enum\OrderStatus::CANCELLED

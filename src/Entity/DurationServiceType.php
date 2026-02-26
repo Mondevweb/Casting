@@ -51,9 +51,24 @@ class DurationServiceType extends AbstractServiceType
     #[Groups(['service:read'])]
     private ?int $baseDurationMin = 2; // Le forfait inclut X minutes
 
+    #[ORM\Column]
+    #[Groups(['service:read'])]
+    private ?int $durationStep = 60; // Pas de temps (ex: 60 min = 1h)
+
     // =========================================================================
     // GETTERS & SETTERS
     // =========================================================================
+
+    public function getDurationStep(): ?int
+    {
+        return $this->durationStep;
+    }
+
+    public function setDurationStep(int $durationStep): static
+    {
+        $this->durationStep = $durationStep;
+        return $this;
+    }
 
     public function getLibraryQuota(): ?int
     {

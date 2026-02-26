@@ -16,6 +16,9 @@ use App\State\ProfessionalProcessor;
 use App\Enum\ProfessionalStatus;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use Symfony\Component\Serializer\Attribute\Groups;
 
 #[ORM\Entity(repositoryClass: ProfessionalRepository::class)]
@@ -23,8 +26,20 @@ use Symfony\Component\Serializer\Attribute\Groups;
     processor: ProfessionalProcessor::class,
     normalizationContext: ['groups' => ['professional:read']], // Pour la lecture (GET)
     denormalizationContext: ['groups' => ['professional:write']], // Pour l'écriture (POST/PATCH)
+    paginationEnabled: false, // On charge tout pour filtrer en front (volumétrie < 200)
 )]
-#[ApiFilter(SearchFilter::class, properties: ['departmentCode' => 'exact'])]
+#[ApiFilter(SearchFilter::class, properties: [
+    'departmentCode' => 'exact',
+    'jobTitle.name' => 'partial',
+    'city' => 'partial',
+    'zipCode' => 'exact',
+    'specialties.name' => 'partial',
+    'specialties.id' => 'exact',
+    'proServices.serviceType.name' => 'partial'
+])]
+#[ApiFilter(BooleanFilter::class, properties: ['isExpressEnabled', 'isStripeVerified'])]
+#[ApiFilter(RangeFilter::class, properties: ['standardDelayDays', 'proServices.basePrice'])]
+#[ApiFilter(DateFilter::class, properties: ['unavailableUntil'])]
 class Professional
 {
     #[ORM\Id]
