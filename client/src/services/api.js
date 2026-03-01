@@ -1,8 +1,10 @@
 import axios from 'axios';
 
 // Create Axios instance
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://127.0.0.1:8000';
+
 const api = axios.create({
-    baseURL: 'https://127.0.0.1:8000/api', // Local Symfony Server (HTTPS)
+    baseURL: `${API_BASE_URL}/api`, // Utilisation de l'URL environnée
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'

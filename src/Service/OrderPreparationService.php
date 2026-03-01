@@ -75,20 +75,19 @@ class OrderPreparationService
 
     private function hydrateOrderLine(OrderLine $line, array $lineData): void
     {
-        // Service Type
-        if (isset($lineData['serviceType'])) {
-            // Détection du type de service via l'IRI
-            if (str_contains($lineData['serviceType'], 'unit_service_types')) {
-                $cls = \App\Entity\UnitServiceType::class;
-            } elseif (str_contains($lineData['serviceType'], 'duration_service_types')) {
-                $cls = \App\Entity\DurationServiceType::class;
-            } else {
-                $cls = \App\Entity\AbstractServiceType::class; 
-            }
-
-            if (preg_match('/\/(\d+)$/', $lineData['serviceType'], $matches)) {
-                $st = $this->entityManager->getReference($cls, (int)$matches[1]);
-                $line->setServiceType($st);
+        // ProService (remplace l'ancien serviceType)
+        if (isset($lineData['service'])) {
+            if (preg_match('/\/(\d+)$/', $lineData['service'], $matches)) {
+                /** @var \App\Entity\ProService $proService */
+                $proService = $this->entityManager->getReference(\App\Entity\ProService::class, (int)$matches[1]);
+                $line->setService($proService);
+                
+                // On peut déjà pré-remplir le serviceType car on en aura besoin pour les validations
+                // Si on a un proxy Doctrine (getReference), on risque de ne pas pouvoir accéder directement à getServiceType() sans charger l'entité
+                // Mais Doctrine chargera l'entité à l'appel.
+                if ($proService && $proService->getServiceType()) {
+                    $line->setServiceType($proService->getServiceType());
+                }
             }
         }
 
@@ -110,13 +109,19 @@ class OrderPreparationService
 
     private function linkProServiceAndValidate(Order $order, OrderLine $line): void
     {
-        $serviceType = $line->getServiceType();
-        if (!$serviceType) {
-             throw new BadRequestHttpException("Chaque ligne de commande doit avoir un ServiceType valide.");
+        // 0. Déduction du ServiceType si on a fourni le ProService
+        if ($line->getService() !== null && $line->getServiceType() === null) {
+            $line->setServiceType($line->getService()->getServiceType());
         }
 
-        // 1. Lier ProService
-        if ($line->getService() === null) {
+        $serviceType = $line->getServiceType();
+        if (!$serviceType) {
+             throw new BadRequestHttpException("Chaque ligne de commande doit avoir un Service ou ServiceType valide.");
+        }
+
+        // 1. Lier ProService (si manquant) et valider
+        $proService = $line->getService();
+        if ($proService === null) {
             $proService = $this->proServiceRepository->findOneBy([
                 'professional' => $order->getProfessional(),
                 'serviceType' => $serviceType
@@ -125,11 +130,19 @@ class OrderPreparationService
             if (!$proService || !$proService->isActive()) {
                 throw new BadRequestHttpException(sprintf(
                     "Le professionnel %s ne propose pas le service '%s' (ou il est inactif).",
-                    $order->getProfessional()->getUser()->getEmail(), // Ou nom
+                    $order->getProfessional()->getUser()->getEmail(),
                     $serviceType->getName()
                 ));
             }
             $line->setService($proService);
+        } else {
+            // Vérifier que le service fourni appartient bien au pro de la commande et est actif
+            if ($proService->getProfessional() !== $order->getProfessional() || !$proService->isActive()) {
+                throw new BadRequestHttpException(sprintf(
+                    "Le service '%s' n'est pas disponible pour ce professionnel.",
+                    $serviceType->getName()
+                ));
+            }
         }
 
         // 2. Valider Règles Métier

@@ -65,7 +65,8 @@ class OrderPriceTest extends ApiTestCase
             $photoType->setName('Photos')->setSlug('photos')->setIsActive(true)
                       ->setBaseQuantity(10)
                       ->setOrderMinQty(1)
-                      ->setOrderMaxQty(20);
+                      ->setOrderMaxQty(20)
+                      ->setUnitName('photo');
             $this->entityManager->persist($photoType);
 
             $proServicePhoto = new ProService();
@@ -95,6 +96,7 @@ class OrderPriceTest extends ApiTestCase
             // C. Create Candidate & Media
             $candidateUser = new User();
             $candidateUser->setEmail('candidate@test.com');
+            $candidateUser->setRoles(['ROLE_CANDIDATE']);
             $candidateUser->setPassword(
                 self::getContainer()->get('security.user_password_hasher')->hashPassword($candidateUser, 'password')
             );
@@ -147,13 +149,13 @@ class OrderPriceTest extends ApiTestCase
                 'orderLines' => [
                     // Line 1: 14 Photos
                     [
-                        'serviceType' => '/api/unit_service_types/' . $photoType->getId(), 
+                        'service' => '/api/pro_services/' . $proServicePhoto->getId(), 
                         'quantityBilled' => 14,
                         'mediaObjects' => array_map(fn($m) => '/api/media_objects/' . $m->getId(), $photoMedias)
                     ],
                     // Line 2: 1 Video (5m20s)
                     [
-                        'serviceType' => '/api/duration_service_types/' . $videoType->getId(),
+                        'service' => '/api/pro_services/' . $proServiceVideo->getId(),
                         'quantityBilled' => 0, // Calculated automatically ideally, but let's pass dummy
                         'mediaObjects' => ['/api/media_objects/' . $videoMedia->getId()]
                     ]

@@ -15,7 +15,7 @@ class ProService
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['professional:read'])]
+    #[Groups(['professional:read', 'order:read'])]
     private ?int $id = null;
 
     // =========================================================================
@@ -28,7 +28,7 @@ class ProService
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['professional:read'])]
+    #[Groups(['professional:read', 'order:read'])]
     private ?AbstractServiceType $serviceType = null;
 
     // =========================================================================
@@ -36,15 +36,15 @@ class ProService
     // =========================================================================
 
     #[ORM\Column(type: 'boolean')]
-    #[Groups(['professional:read'])]
+    #[Groups(['professional:read', 'order:read'])]
     private ?bool $isActive = false; // Le pro propose-t-il ce service actuellement ?
 
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['professional:read'])]
+    #[Groups(['professional:read', 'order:read'])]
     private ?int $basePrice = null; // Prix du forfait (en centimes ou euros selon votre choix, ici Int = centimes souvent)
 
     #[ORM\Column(type: Types::INTEGER, nullable: true)]
-    #[Groups(['professional:read'])]
+    #[Groups(['professional:read', 'order:read'])]
     private ?int $supplementPrice = null; // Prix unitaire/minute sup
 
     // =========================================================================
@@ -79,6 +79,12 @@ class ProService
     }
 
     public function isActive(): ?bool
+    {
+        return $this->isActive;
+    }
+
+    #[Groups(['professional:read', 'order:read'])]
+    public function getIsActive(): ?bool
     {
         return $this->isActive;
     }

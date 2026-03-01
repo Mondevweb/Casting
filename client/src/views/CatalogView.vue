@@ -16,8 +16,9 @@
                 </router-link>
             </div>
           </div>
-          <div class="flex items-center">
-            <Button label="Déconnexion" icon="pi pi-sign-out" class="p-button-text" @click="handleLogout" />
+          <div class="flex items-center gap-4">
+            <Button icon="pi pi-shopping-cart" label="Panier" class="p-button-text font-medium" :badge="cartStore.totalItems > 0 ? cartStore.totalItems.toString() : null" @click="$router.push('/cart')" />
+            <Button label="Déconnexion" icon="pi pi-sign-out" class="p-button-text text-red-500" @click="handleLogout" />
           </div>
         </div>
       </div>
@@ -83,10 +84,10 @@
                                             </div>
                                         </div>
                                         <div class="flex flex-col md:items-end gap-5">
-                                            <span class="text-xl font-bold text-gray-900">À partir de 50€</span>
+                                            <span class="text-xl font-bold text-gray-900">À partir de {{ getMinPrice(item.proServices) }}</span>
                                             <div class="flex gap-2">
                                                 <Button icon="pi pi-heart" outlined></Button>
-                                                <Button icon="pi pi-eye" label="Voir services" :disabled="item.inventoryStatus === 'OUTOFSTOCK'" class="flex-auto md:flex-initial whitespace-nowrap" @click="$router.push(`/professional/${item.id}`)"></Button>
+                                                <Button icon="pi pi-eye" label="Voir services" class="flex-auto md:flex-initial whitespace-nowrap" @click="$router.push(`/professional/${item.id}`)"></Button>
                                             </div>
                                         </div>
                                     </div>
@@ -108,7 +109,7 @@
                                                 <span class="font-medium text-secondary text-sm">{{ item.jobTitle?.name }}</span>
                                                 <div class="text-lg font-medium text-gray-900 mt-1">{{ item.firstName }} {{ item.lastName }}</div>
                                             </div>
-                                            <span class="font-bold text-gray-900">50€</span>
+                                            <span class="font-bold text-gray-900 whitespace-nowrap">Dès {{ getMinPrice(item.proServices) }}</span>
                                         </div>
                                         <div class="flex flex-col gap-2">
                                             <span class="text-sm text-gray-500">📍 {{ item.city }}</span>
@@ -139,6 +140,7 @@
 <script>
 import { useAuthStore } from '@/stores/auth';
 import { useProfessionalStore } from '@/stores/professional';
+import { useCartStore } from '@/stores/cart';
 import { useJobTitleStore } from '@/stores/jobTitle';
 import { useSpecialtyStore } from '@/stores/specialty';
 import InputText from 'primevue/inputtext';
@@ -166,6 +168,7 @@ export default {
             layout: 'grid',
             layoutOptions: ['list', 'grid'],
             professionalStore: useProfessionalStore(),
+            cartStore: useCartStore(),
             jobTitleStore: useJobTitleStore(),
             specialtyStore: useSpecialtyStore(),
             searchQuery: useProfessionalStore().filters.search,
@@ -175,7 +178,12 @@ export default {
     },
     computed: {
         professionals() {
-            return this.professionalStore.filteredProfessionals;
+            let result = this.professionalStore.filteredProfessionals;
+            // Ne renvoyer que les professionnels qui ont au moins 1 prestation enregistrée ET active
+            return result.filter(pro => {
+                if (!pro.proServices) return false;
+                return pro.proServices.some(service => service.isActive === true);
+            });
         },
         loading() {
             return this.professionalStore.loading;
@@ -205,6 +213,15 @@ export default {
         },
         onSpecialtyChange() {
             this.professionalStore.updateSpecialties(this.selectedSpecialties);
+        },
+        getMinPrice(services) {
+            if (!services || services.length === 0) return 'N/A';
+            const activeServices = services.filter(s => s.isActive === true);
+            if (activeServices.length === 0) return 'N/A';
+            
+            const prices = activeServices.map(s => s.basePrice);
+            const minPrice = Math.min(...prices);
+            return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(minPrice / 100);
         }
     }
 };

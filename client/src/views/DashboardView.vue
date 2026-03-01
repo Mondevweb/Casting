@@ -16,8 +16,9 @@
                 </router-link>
             </div>
           </div>
-          <div class="flex items-center">
-            <span class="mr-4 text-gray-700" v-if="user">Bonjour, {{ user.email }}</span>
+          <div class="flex items-center gap-4">
+            <span class="text-gray-700 hidden sm:inline" v-if="user">Bonjour, {{ user.email }}</span>
+            <Button icon="pi pi-shopping-cart" label="Panier" class="p-button-text font-medium" :badge="cartStore.totalItems > 0 ? cartStore.totalItems.toString() : null" @click="$router.push('/cart')" />
             <Button label="Déconnexion" icon="pi pi-sign-out" class="p-button-text" @click="handleLogout" />
           </div>
         </div>
@@ -70,6 +71,7 @@
 <script>
 import { useAuthStore } from '@/stores/auth';
 import { useOrderStore } from '@/stores/order';
+import { useCartStore } from '@/stores/cart';
 import Button from 'primevue/button';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
@@ -84,6 +86,7 @@ export default {
     },
     data() {
         return {
+            cartStore: useCartStore(),
         };
     },
     computed: {
@@ -97,8 +100,9 @@ export default {
             return useOrderStore().loading;
         }
     },
-    mounted() {
+    async mounted() {
         useOrderStore().fetchOrders();
+        await this.cartStore.fetchCart();
     },
     methods: {
         handleLogout() {

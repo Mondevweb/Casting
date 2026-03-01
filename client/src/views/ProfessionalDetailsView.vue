@@ -10,7 +10,7 @@
                Détail du Professionnel
              </div>
            </div>
-           <Button icon="pi pi-shopping-cart" label="Panier" class="p-button-text font-medium" badge="0" @click="$router.push('/cart')" />
+           <Button icon="pi pi-shopping-cart" label="Panier" class="p-button-text font-medium" :badge="cartStore.totalItems > 0 ? cartStore.totalItems.toString() : null" @click="$router.push('/cart')" />
         </div>
       </div>
     </nav>
@@ -82,7 +82,6 @@
                             <div class="flex-1">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 class="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{{ service.serviceType?.name }}</h3>
-                                    <Tag v-if="service.serviceType?.discriminator === 'duration'" value="Forfait" severity="info" class="ml-2"></Tag>
                                 </div>
                                 <p class="text-gray-600 mb-4 leading-relaxed">{{ service.serviceType?.description }}</p>
                                 
@@ -93,14 +92,37 @@
                             </div>
 
                             <div class="flex flex-col items-start sm:items-end gap-4 min-w-[140px]">
-                                <div class="text-right">
-                                    <span class="text-3xl font-extrabold text-gray-900">{{ formatCurrency(service.basePrice) }}</span>
+                                <div class="text-right flex flex-col items-end">
+                                    <span class="text-3xl font-extrabold text-gray-900 leading-none">{{ formatCurrency(service.basePrice) }}</span>
+                                    
+                                    <div v-if="service.serviceType?.discriminator === 'unit'" class="text-xs text-gray-500 mt-1 text-right">
+                                        pour {{ service.serviceType.baseQuantity }} {{ service.serviceType.unitName }}{{ service.serviceType.baseQuantity > 1 ? 's' : '' }}
+                                        <div v-if="service.supplementPrice > 0" class="text-indigo-600 font-semibold mt-0.5">
+                                            + {{ formatCurrency(service.supplementPrice) }} / supp.
+                                        </div>
+                                    </div>
+                                    
+                                    <div v-else-if="service.serviceType?.discriminator === 'duration'" class="text-xs text-gray-500 mt-1 text-right">
+                                        pour {{ service.serviceType.baseDurationMin }} min
+                                        <div v-if="service.supplementPrice > 0" class="text-indigo-600 font-semibold mt-0.5">
+                                            + {{ formatCurrency(service.supplementPrice) }} / {{ service.serviceType.durationStep }} min supp.
+                                        </div>
+                                    </div>
                                 </div>
                                 <Button 
-                                    label="Commander" 
-                                    icon="pi pi-shopping-cart" 
+                                    v-if="!getExistingCartItem(service.id)"
+                                    label="Configurer" 
+                                    icon="pi pi-cog" 
                                     class="w-full sm:w-auto p-button-rounded" 
-                                    @click="addToCart(service)"
+                                    @click="openOrderModal(service)"
+                                />
+                                <Button 
+                                    v-else
+                                    label="Modifier" 
+                                    icon="pi pi-pencil" 
+                                    class="w-full sm:w-auto p-button-rounded p-button-secondary p-button-outlined" 
+                                    @click="openOrderModal(service, getExistingCartItem(service.id))"
+                                    v-tooltip.top="'Ce service est déjà dans votre panier'"
                                 />
                             </div>
                         </div>
@@ -121,6 +143,16 @@
         <p class="text-gray-500 mt-2">Ce profil n'existe pas ou a été supprimé.</p>
         <Button label="Retour au catalogue" class="mt-6 p-button-outlined" @click="$router.push('/catalog')" />
     </div>
+
+    <!-- Modale de configuration de commande -->
+    <OrderConfigModal 
+        v-if="selectedService"
+        :visible="isModalVisible" 
+        :service="selectedService" 
+        :professional="professional"
+        :existingItem="existingCartItem"
+        @update:visible="isModalVisible = $event"
+        @added="handleServiceAdded" />
   </div>
 </template>
 
@@ -129,16 +161,21 @@ import { useProfessionalStore } from '@/stores/professional';
 import { useCartStore } from '@/stores/cart';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
+import OrderConfigModal from '@/components/OrderConfigModal.vue';
 
 export default {
     components: {
         Button,
-        Tag
+        Tag,
+        OrderConfigModal
     },
     data() {
         return {
             proStore: useProfessionalStore(),
-            cartStore: useCartStore()
+            cartStore: useCartStore(),
+            isModalVisible: false,
+            selectedService: null,
+            existingCartItem: null
         };
     },
     computed: {
@@ -156,28 +193,36 @@ export default {
             return this.proStore.loading;
         }
     },
-    mounted() {
+    async mounted() {
         const id = this.$route.params.id;
         if (id) {
             this.proStore.fetchProfessional(id);
         }
+        await this.cartStore.fetchCart(); // Pré-charge le panier pour le badge
     },
     methods: {
         formatCurrency(value) {
             return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(value / 100);
         },
-        addToCart(service) {
-            // Enrich service object with professional info for the cart display
-            const item = {
-                ...service,
-                professional: {
-                    id: this.professional.id,
-                    firstName: this.professional.firstName,
-                    lastName: this.professional.lastName
-                }
-            };
-            this.cartStore.addToCart(item);
-            alert('Service ajouté au panier !'); // Replace with Toast later
+        getExistingCartItem(serviceId) {
+            if (!this.cartStore.allItems) return null;
+            return this.cartStore.allItems.find(item => 
+                (item.service === `/api/pro_services/${serviceId}` || 
+                 (item.service && item.service['@id'] === `/api/pro_services/${serviceId}`) ||
+                 (item.service && item.service.id === serviceId)) &&
+                // S'assurer qu'il s'agit bien de la commande DU professionnel actuel
+                (item.professional && (item.professional.id === this.professional.id || item.professional['@id'] === `/api/professionals/${this.professional.id}`))
+            );
+        },
+        openOrderModal(service, existingItem = null) {
+            this.selectedService = service;
+            this.existingCartItem = existingItem;
+            this.isModalVisible = true;
+        },
+        handleServiceAdded() {
+            this.isModalVisible = false;
+            // Optionnel : Toast ici pour dire "Ajouté avec succès !"
+            this.selectedService = null;
         }
     }
 };

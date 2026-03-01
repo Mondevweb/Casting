@@ -10,6 +10,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use App\Entity\Analysis;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Annotation\MaxDepth;
 use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Patch;
@@ -17,9 +18,10 @@ use ApiPlatform\Metadata\Delete;
 
 #[ORM\Entity(repositoryClass: OrderLineRepository::class)]
 #[ApiResource(
-    normalizationContext: ['groups' => ['order:read']], 
+    normalizationContext: ['groups' => ['order:read'], 'enable_max_depth' => true], 
     denormalizationContext: ['groups' => ['order:write']],
-    
+    processor: \App\State\OrderLineProcessor::class,
+    forceEager: false,
     operations: [
         // On autorise à voir une ligne seule (par son ID)
         new Get(),
@@ -37,6 +39,7 @@ class OrderLine
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['order:read'])]
     private ?int $id = null;
 
     // =========================================================================
@@ -45,6 +48,7 @@ class OrderLine
 
     #[ORM\ManyToOne(inversedBy: 'orderLines')]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['order:write'])]
     private ?Order $order = null; // Attention : J'ai nommé la propriété "order" (sans 'Ref')
 
     #[ORM\ManyToOne]
@@ -53,7 +57,8 @@ class OrderLine
     private ?AbstractServiceType $serviceType = null; // Le type de service (Photo, Vidéo...)
 
     #[ORM\ManyToOne]
-    #[Groups(['order:write'])]
+    #[ApiProperty(fetchEager: false)]
+    #[Groups(['order:read', 'order:write'])]
     private ?ProService $service = null; // Le service pro lié (pour le prix)
 
     // =========================================================================
@@ -64,7 +69,9 @@ class OrderLine
      * @var Collection<int, MediaObject>
      */
     #[ORM\ManyToMany(targetEntity: MediaObject::class)]
+    #[ApiProperty(fetchEager: false)]
     #[Groups(['order:read', 'order:write'])]
+    #[MaxDepth(1)]
     private Collection $mediaObjects;
 
     // =========================================================================
@@ -173,6 +180,18 @@ class OrderLine
     public function removeMediaObject(MediaObject $mediaObject): static
     {
         $this->mediaObjects->removeElement($mediaObject);
+        return $this;
+    }
+
+    /**
+     * Set the entire collection (utile pour API Platform PATCH)
+     */
+    public function setMediaObjects(iterable $mediaObjects): static
+    {
+        $this->mediaObjects->clear();
+        foreach ($mediaObjects as $mediaObject) {
+            $this->addMediaObject($mediaObject);
+        }
         return $this;
     }
 

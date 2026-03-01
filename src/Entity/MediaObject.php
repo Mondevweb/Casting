@@ -12,9 +12,11 @@ use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Doctrine\ORM\Mapping as ORM;
 use App\Enum\MediaCategory;
+use App\Enum\TranscodingStatus;
 use Doctrine\DBAL\Types\Types;
 use Symfony\Component\Validator\Constraints as Assert;
 use Gedmo\Mapping\Annotation as Gedmo;
+use App\Repository\MediaObjectRepository;
 
 #[ORM\Entity(repositoryClass: MediaObjectRepository::class)]
 #[ApiResource(
@@ -39,6 +41,7 @@ class MediaObject
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['media_object:read', 'order:read', 'candidate:read'])]
     private ?int $id = null;
 
     // =========================================================================
@@ -57,18 +60,19 @@ class MediaObject
     private ?File $file = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['media_object:read', 'candidate:read'])]
+    #[Groups(['media_object:read', 'candidate:read', 'order:read'])]
     private ?string $contentUrl = null; // Calculated field if needed, or use filePath with prefix
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['media_object:read'])]
+    #[Groups(['media_object:read', 'order:read'])]
     private ?string $filePath = null; // Le chemin S3 ou local (ex: /uploads/cv_jean.pdf)
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['media_object:read'])]
+    #[Groups(['media_object:read', 'order:read'])]
     private ?string $originalName = null;
 
     #[ORM\Column(length: 50, nullable: true)]
+    #[Groups(['media_object:read', 'order:read'])]
     private ?string $mimeType = null; // ex: application/pdf, image/jpeg
 
     #[ORM\Column(nullable: true)]
@@ -84,6 +88,22 @@ class MediaObject
 
     #[ORM\Column(nullable: true)]
     private ?int $duration = null; // En secondes (uniquement pour vidéos)
+
+    // =========================================================================
+    // TRANSCODAGE (FFmpeg)
+    // =========================================================================
+
+    #[ORM\Column(length: 255, enumType: TranscodingStatus::class)]
+    #[Groups(['media_object:read', 'order:read', 'candidate:read'])]
+    private ?TranscodingStatus $transcodingStatus = TranscodingStatus::NOT_APPLICABLE;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['media_object:read', 'order:read', 'candidate:read'])]
+    private ?string $webFilePath = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['media_object:read', 'order:read', 'candidate:read'])]
+    private ?string $thumbnailPath = null;
 
     // =========================================================================
     // TRAÇABILITÉ (Source 81)
@@ -129,7 +149,7 @@ class MediaObject
         return $this->filePath;
     }
 
-    public function setFilePath(string $filePath): static
+    public function setFilePath(?string $filePath): static
     {
         $this->filePath = $filePath;
         return $this;
@@ -140,7 +160,7 @@ class MediaObject
         return $this->originalName;
     }
 
-    public function setOriginalName(string $originalName): static
+    public function setOriginalName(?string $originalName): static
     {
         $this->originalName = $originalName;
         return $this;
@@ -209,6 +229,39 @@ class MediaObject
     public function setDeletedAt(?\DateTimeInterface $deletedAt): static
     {
         $this->deletedAt = $deletedAt;
+        return $this;
+    }
+
+    public function getTranscodingStatus(): ?TranscodingStatus
+    {
+        return $this->transcodingStatus;
+    }
+
+    public function setTranscodingStatus(TranscodingStatus $transcodingStatus): static
+    {
+        $this->transcodingStatus = $transcodingStatus;
+        return $this;
+    }
+
+    public function getWebFilePath(): ?string
+    {
+        return $this->webFilePath;
+    }
+
+    public function setWebFilePath(?string $webFilePath): static
+    {
+        $this->webFilePath = $webFilePath;
+        return $this;
+    }
+
+    public function getThumbnailPath(): ?string
+    {
+        return $this->thumbnailPath;
+    }
+
+    public function setThumbnailPath(?string $thumbnailPath): static
+    {
+        $this->thumbnailPath = $thumbnailPath;
         return $this;
     }
     #[ORM\Column(type: 'datetime', nullable: true)]

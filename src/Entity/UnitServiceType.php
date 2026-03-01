@@ -40,20 +40,20 @@ class UnitServiceType extends AbstractServiceType
     private ?int $orderMinQty = 1;
 
     #[ORM\Column]
-    #[Groups(['service:read'])]
-    private ?int $orderMaxQty = 10;
+    #[Groups(['service:read', 'professional:read'])]
+    private ?int $orderMaxQty = 100;
 
     // =========================================================================
     // STRUCTURE DE PRIX (Source 32)
     // =========================================================================
 
     #[ORM\Column]
-    #[Groups(['service:read'])]
-    private ?int $baseQuantity = 1; // Le forfait de base inclut X photos
+    #[Groups(['service:read', 'professional:read', 'order:read'])]
+    private ?int $baseQuantity = 1; // Prix donné pour X unités
 
     #[ORM\Column(length: 50)]
-    #[Groups(['service:read'])]
-    private ?string $unitName = null; // ex: "photo", "page", "minute"
+    #[Groups(['service:read', 'professional:read', 'order:read'])]
+    private ?string $unitName = null; // "photo", "page", "mot", etc.e"
 
     // =========================================================================
     // GETTERS & SETTERS

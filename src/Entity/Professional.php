@@ -20,11 +20,12 @@ use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use Symfony\Component\Serializer\Attribute\Groups;
+use Symfony\Component\Serializer\Annotation\MaxDepth;
 
 #[ORM\Entity(repositoryClass: ProfessionalRepository::class)]
 #[ApiResource(
     processor: ProfessionalProcessor::class,
-    normalizationContext: ['groups' => ['professional:read']], // Pour la lecture (GET)
+    normalizationContext: ['groups' => ['professional:read'], 'enable_max_depth' => true], // Pour la lecture (GET)
     denormalizationContext: ['groups' => ['professional:write']], // Pour l'écriture (POST/PATCH)
     paginationEnabled: false, // On charge tout pour filtrer en front (volumétrie < 200)
 )]
@@ -45,7 +46,7 @@ class Professional
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['professional:read'])]
+    #[Groups(['professional:read', 'order:read'])]
     private ?int $id = null;
 
     // =========================================================================
@@ -54,7 +55,7 @@ class Professional
 
     #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'professional', cascade: ['persist', 'remove'])]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['professional:read'])] // En lecture, on pourra voir les infos du User lié
+    #[Groups(['professional:read', 'order:read'])] // En lecture, on pourra voir les infos du User lié
     private ?User $user = null;
 
     // =========================================================================
@@ -62,11 +63,11 @@ class Professional
     // =========================================================================
 
     #[ORM\Column(length: 255)]
-    #[Groups(['professional:read', 'professional:write'])]
+    #[Groups(['professional:read', 'professional:write', 'order:read'])]
     private ?string $firstName = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['professional:read', 'professional:write'])]
+    #[Groups(['professional:read', 'professional:write', 'order:read'])]
     private ?string $lastName = null;
 
     #[ORM\Column(length: 255, nullable: true)]
@@ -163,6 +164,7 @@ class Professional
 
     #[ORM\OneToMany(mappedBy: 'professional', targetEntity: ProService::class, cascade: ['persist', 'remove'])]
     #[Groups(['professional:read', 'professional:write'])]
+    #[MaxDepth(1)]
     private Collection $proServices;
 
     // --- CHAMPS VIRTUELS POUR L'INSCRIPTION (Non stockés en base) ---

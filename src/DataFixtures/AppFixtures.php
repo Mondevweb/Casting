@@ -83,30 +83,38 @@ class AppFixtures extends Fixture
         $srv1->setLibraryQuota(50);
         $srv1->setOrderMinQty(1);
         $srv1->setOrderMaxQty(10);
+        $srv1->setDescription('Un retour professionnel et détaillé sur vos headshots ou photos de book. Idéal pour sélectionner les clichés les plus percutants pour l\'industrie.');
+        $srv1->setInstructionsHelp('Merci d\'uploader vos meilleures propositions photographiques. Précisez si vous ciblez la publicité, la mode ou le cinéma.');
         $srv1->setIsActive(true);
         $manager->persist($srv1);
         $serviceTypes[] = $srv1;
 
         // 2. Analyse de Bande Démo (Unit)
-        $srv2 = new UnitServiceType();
+        $srv2 = new DurationServiceType();
         $srv2->setName('Analyse de Bande Démo');
         $srv2->setSlug('analyse-de-bande-demo');
-        $srv2->setUnitName('bande-demo');
+        $srv2->setBaseDurationMin(15);
+        $srv2->setDurationStep(15);
         $srv2->setLibraryQuota(10);
-        $srv2->setOrderMinQty(1);
-        $srv2->setOrderMaxQty(1);
+        $srv2->setOrderMinFiles(1);
+        $srv2->setOrderMaxFiles(1);
+        $srv2->setDescription('Critique constructive de votre bande démo. Analyse du rythme, du choix des scènes et de l\'impact global pour maximiser vos chances de décrocher des auditions.');
+        $srv2->setInstructionsHelp('Uploadez votre bande démo actuelle (fichier vidéo compressé de préférence). Précisez dans le champ de texte la typologie de rôles vers laquelle vous souhaitez évoluer.');
         $srv2->setIsActive(true);
         $manager->persist($srv2);
         $serviceTypes[] = $srv2;
 
         // 3. Analyse de Vidéo de Présentation (Unit)
-        $srv3 = new UnitServiceType();
+        $srv3 = new DurationServiceType();
         $srv3->setName('Analyse de Vidéo de Présentation');
         $srv3->setSlug('analyse-de-video-presentation');
-        $srv3->setUnitName('video-presentation');
+        $srv3->setBaseDurationMin(5);
+        $srv3->setDurationStep(5);
         $srv3->setLibraryQuota(10);
-        $srv3->setOrderMinQty(1);
-        $srv3->setOrderMaxQty(1);
+        $srv3->setOrderMinFiles(1);
+        $srv3->setOrderMaxFiles(1);
+        $srv3->setDescription('Évaluation de votre vidéo de présentation (selftape d\'introduction). Conseils sur l\'attitude, la lumière, le cadre et le son pour garantir une première impression mémorable.');
+        $srv3->setInstructionsHelp('Uploadez une courte vidéo (1 minute max) où vous vous présentez face caméra de manière naturelle.');
         $srv3->setIsActive(true);
         $manager->persist($srv3);
         $serviceTypes[] = $srv3;
@@ -115,22 +123,27 @@ class AppFixtures extends Fixture
         $srv4 = new UnitServiceType();
         $srv4->setName('Analyse de CV');
         $srv4->setSlug('analyse-de-cv');
-        $srv4->setUnitName('cv');
+        $srv4->setUnitName('CV');
         $srv4->setLibraryQuota(10);
         $srv4->setOrderMinQty(1);
         $srv4->setOrderMaxQty(1);
+        $srv4->setDescription('Relecture complète et optimisation de votre Curriculum Vitae artistique. Mise en valeur stratégique de vos expériences et de votre formation.');
+        $srv4->setInstructionsHelp('Votre CV doit impérativement être envoyé au format PDF pour éviter tout problème de mise en page. Précisez votre taille, âge apparent et lien vers vos réseaux si pertinents.');
         $srv4->setIsActive(true);
         $manager->persist($srv4);
         $serviceTypes[] = $srv4;
 
-        // 5. Composition de Bande Démo (Unit - multiple scenes input logic implied)
-        $srv5 = new UnitServiceType(); // Or DurationServiceType if per minute? User said "uploading multiple scenes". Assuming Unit "1 Demo Reel".
+        // 5. Composition de Bande Démo (Duration)
+        $srv5 = new DurationServiceType();
         $srv5->setName('Composition de Bande Démo');
         $srv5->setSlug('composition-de-bande-demo');
-        $srv5->setUnitName('bande-demo-montee');
+        $srv5->setBaseDurationMin(3);
+        $srv5->setDurationStep(1);
         $srv5->setLibraryQuota(20); // More space for scenes
-        $srv5->setOrderMinQty(1);
-        $srv5->setOrderMaxQty(1);
+        $srv5->setOrderMinFiles(1);
+        $srv5->setOrderMaxFiles(10);
+        $srv5->setDescription('Montage sur mesure de votre bande démo à partir de vos rushs bruts ou extraits de films. Création d\'une narration visuelle dynamique mettant en valeur votre spectre de jeu.');
+        $srv5->setInstructionsHelp('Déposez ici les différentes vidéos contenant vos apparitions. Attention, vous devez OBLIGATOIREMENT fournir un document PDF listant, pour chaque vidéo envoyée, le TimeCode précis de votre apparition (ex: Fichier 2, de 01:14 à 01:45).');
         $srv5->setIsActive(true);
         $manager->persist($srv5);
         $serviceTypes[] = $srv5;
@@ -176,6 +189,10 @@ class AppFixtures extends Fixture
                     $ps->setProfessional($pro);
                     $ps->setServiceType($st);
                     $ps->setBasePrice($faker->numberBetween(5000, 50000)); // 50€ - 500€
+                    // Mettre un prix supplémentaire aléatoire pour tester l'interface
+                    if ($faker->boolean(70)) {
+                        $ps->setSupplementPrice($faker->numberBetween(1000, 10000));
+                    }
                     $ps->setIsActive(true);
                     $manager->persist($ps);
                 }

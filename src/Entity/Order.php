@@ -14,13 +14,17 @@ use App\Entity\OrderConclusion;
 use App\Entity\Dispute;
 use App\State\OrderProcessor;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Serializer\Annotation\MaxDepth;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 
 #[ORM\Entity(repositoryClass: OrderRepository::class)]
 #[ORM\Table(name: '`order`')] // "order" est un mot réservé SQL, il faut l'échapper
 #[ApiResource(
     processor: OrderProcessor::class,
     denormalizationContext: ['groups' => ['order:write']],
-    normalizationContext: ['groups' => ['order:read']],
+    normalizationContext: ['groups' => ['order:read'], 'enable_max_depth' => true],
+    forceEager: false,
     operations: [
         new \ApiPlatform\Metadata\Get(
             security: "object.getCandidate().getUser() === user or object.getProfessional().getUser() === user or is_granted('ROLE_ADMIN')"
@@ -51,6 +55,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         )
     ]
 )]
+#[ApiFilter(SearchFilter::class, properties: ['status' => 'exact'])]
 class Order
 {
     #[ORM\Id]
@@ -75,7 +80,6 @@ class Order
 
     #[ORM\ManyToOne(cascade: ['persist'])]
     #[ORM\JoinColumn(nullable: false)]
-    #[ApiProperty(readableLink: false, writableLink: false)]
     #[Groups(['order:read', 'order:write'])]
     private ?Professional $professional = null;
 
@@ -89,6 +93,7 @@ class Order
     #[ORM\OneToMany(mappedBy: 'order', targetEntity: OrderLine::class, cascade: ['persist', 'remove'])]
     #[ApiProperty(writableLink: true)]
     #[Groups(['order:read', 'order:write'])]
+    #[MaxDepth(1)]
     private Collection $orderLines;
 
     // =========================================================================

@@ -47,13 +47,13 @@ class DurationServiceType extends AbstractServiceType
     // STRUCTURE DE PRIX (Source 37)
     // =========================================================================
 
-    #[ORM\Column]
-    #[Groups(['service:read'])]
-    private ?int $baseDurationMin = 2; // Le forfait inclut X minutes
+    #[ORM\Column(type: 'integer')]
+    #[Groups(['service:read', 'professional:read', 'order:read'])]
+    private ?int $baseDurationMin = null; // Durée de base 
 
-    #[ORM\Column]
-    #[Groups(['service:read'])]
-    private ?int $durationStep = 60; // Pas de temps (ex: 60 min = 1h)
+    #[ORM\Column(type: 'integer', nullable: true)]
+    #[Groups(['service:read', 'professional:read', 'order:read'])]
+    private ?int $durationStep = null; // Pas d'incrément temps (ex: 60 min = 1h)
 
     // =========================================================================
     // GETTERS & SETTERS

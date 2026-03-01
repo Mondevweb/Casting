@@ -37,7 +37,7 @@ class OrderPriceCalculator
         $order->setProAmount($proAmount);
     }
 
-    private function calculateLinePrice(OrderLine $line): int
+    public function calculateLinePrice(OrderLine $line): int
     {
         $service = $line->getService(); // ProService entity
         if (!$service) {
@@ -48,42 +48,42 @@ class OrderPriceCalculator
         $medias = $line->getMediaObjects();
         $count = count($medias);
         
-        $basePrice = $service->getBasePrice(); // in cents
-        $supplementPrice = $service->getSupplementPrice(); // in cents
+        $basePrice = $service->getBasePrice() ?? 0; // in cents
+        $supplementPrice = $service->getSupplementPrice() ?? 0; // in cents
 
         // FREEZE PRICES
         $line->setBasePriceFrozen($basePrice);
         $line->setUnitPriceFrozen($supplementPrice);
 
-        if ($serviceType instanceof UnitServiceType) {
+        // Au lieu de "instanceof", on utilise le type stocké en base ou on s'assure d'avoir la vraie classe
+        // car Doctrine charge un "AbstractServiceTypeProxy" qui échoue au instanceof.
+        $discriminator = $serviceType->getDiscriminator();
+
+        if ($discriminator === 'unit') {
             // Formula: Base + (max(0, Qty - BaseQty) * SuppPrice)
-            $baseQty = $serviceType->getBaseQuantity() ?? 1;
+            // Comme Doctrine a pu charger un Proxy Abstract, on passe par l'implémentation métier :
+            // (Note: baseQuantity est dans UnitServiceType. On s'assure de l'accessibilité).
+            $baseQty = method_exists($serviceType, 'getBaseQuantity') ? $serviceType->getBaseQuantity() : 1;
             
             $extraQty = max(0, $count - $baseQty);
             return $basePrice + ($extraQty * $supplementPrice);
         }
 
-        if ($serviceType instanceof DurationServiceType) {
+        if ($discriminator === 'duration') {
             // Formula: Base + (max(0, ceil((TotalDuration - BaseDuration)/60)) * SuppPrice)
-            // Note: Duration is in MINUTES in ServiceType, but Medias usually have duration in SECONDS ?
-            // Let's check MediaObject::duration (int, assumed seconds or minutes? Name says duration, usually seconds for video). 
-            // In the test we set 320 for 5m20s. So it is seconds.
-            // ServiceType::baseDurationMin is in MINUTES.
-            
             $totalDurationSeconds = 0;
             foreach ($medias as $media) {
-                $totalDurationSeconds += $media->getDuration() ?? 0;
+                $totalDurationSeconds += method_exists($media, 'getDuration') ? ($media->getDuration() ?? 0) : 0;
             }
 
-            $baseDurationSeconds = ($serviceType->getBaseDurationMin() ?? 0) * 60;
+            $baseDurationMin = method_exists($serviceType, 'getBaseDurationMin') ? $serviceType->getBaseDurationMin() : 0;
+            $baseDurationSeconds = $baseDurationMin * 60;
             
             if ($totalDurationSeconds <= $baseDurationSeconds) {
                 return $basePrice;
             }
 
             $diffSeconds = $totalDurationSeconds - $baseDurationSeconds;
-            // "Minute entamée est due" => ceil of minutes.
-            // So ceil(diffSeconds / 60)
             $extraMinutes = (int) ceil($diffSeconds / 60);
 
             return $basePrice + ($extraMinutes * $supplementPrice);
