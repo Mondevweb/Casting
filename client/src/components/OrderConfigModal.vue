@@ -185,12 +185,9 @@
                         invalidFileTypeMessage="{0} : Format de fichier non autorisé pour ce type de prestation."
                         class="w-full custom-fileupload"
                     >
-                        <!-- Remplacement de la zone Drop Native vide -->
+                        <!-- Remplacement de la zone Drop Native vide par un vide -->
                         <template #empty>
-                            <div class="m-0 text-center text-gray-500 font-medium py-8 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:border-indigo-300 transition-colors flex flex-col items-center justify-center gap-3">
-                                <i class="pi pi-upload text-3xl text-gray-400"></i>
-                                <span>Glissez et déposez vos fichiers ici ou utilisez le bouton ci-dessus.</span>
-                            </div>
+                            <span class="hidden"></span>
                         </template>
 
                         <!-- Surcharge de la vue PrimeVue des fichiers en transit pour masquer la liste redondante -->
@@ -312,7 +309,11 @@ export default {
     computed: {
         acceptedFileTypes() {
             // Lecture stricte de la validation Base de Données exposée par API Platform
-            return this.service?.serviceType?.htmlAcceptMask || "image/*,video/mp4,video/quicktime,application/pdf,audio/*";
+            // htmlAcceptMask peut être vide ou indéfini sur des vieilles données, on garde un fallback
+            if (this.service?.serviceType?.htmlAcceptMask) {
+                return this.service.serviceType.htmlAcceptMask;
+            }
+            return "image/*,video/mp4,video/quicktime,application/pdf,audio/*";
         },
         acceptedFileTypesLabel() {
             const types = this.acceptedFileTypes;
@@ -416,6 +417,14 @@ export default {
             event.formData.append("category", "photo");
         },
         onUploadComplete(event) {
+            // Clear FileUpload internal list so PrimeVue doesn't show its own thumbnails below
+            if (this.$refs.fileUpload) {
+                this.$refs.fileUpload.clear();
+                if (this.$refs.fileUpload.uploadedFiles) {
+                    this.$refs.fileUpload.uploadedFiles = [];
+                }
+            }
+
             // event.xhr.response contiendra le JSON de MediaObject
             try {
                 const fileList = JSON.parse(event.xhr.response);
@@ -493,5 +502,24 @@ export default {
 /* Retrait pur du bouton Cancel qui peut survenir avec auto=true en mode template sur certains navigateurs */
 .custom-fileupload .p-fileupload-buttonbar button.p-button-danger {
     display: none !important;
+}
+
+/* Nettoyage visuel brut (supprime les bordures et fond natifs du composant) */
+.custom-fileupload.p-fileupload {
+    border: none;
+    background: transparent;
+}
+.custom-fileupload .p-fileupload-buttonbar {
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+.custom-fileupload .p-fileupload-content {
+    border: none;
+    background: transparent;
+    padding: 0;
+}
+.custom-fileupload .p-fileupload-content > span.hidden {
+    display: none;
 }
 </style>
