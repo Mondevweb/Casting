@@ -220,6 +220,8 @@ export const useOrderEditorStore = defineStore('orderEditor', {
             if (this.pollingInterval) return;
             this.pollingInterval = setInterval(async () => {
                 let needsPolling = false;
+                let statusChangedToCompleted = false;
+                
                 for (let i = 0; i < this.medias.length; i++) {
                     const m = this.medias[i];
                     if (m && (m.transcodingStatus === 'PENDING' || m.transcodingStatus === 'PROCESSING')) {
@@ -228,6 +230,9 @@ export const useOrderEditorStore = defineStore('orderEditor', {
                             // La base d'Axios inclut déjà '/api' (/api/media_objects/:id)
                             const res = await api.get(`/media_objects/${m.id}`);
                             if (res.data) {
+                                if (res.data.transcodingStatus === 'COMPLETED') {
+                                    statusChangedToCompleted = true;
+                                }
                                 // Remplacement réactif : on fusionne les nouvelles données avec l'objet actuel
                                 this.medias.splice(i, 1, { ...m, ...res.data });
                             }
@@ -236,6 +241,14 @@ export const useOrderEditorStore = defineStore('orderEditor', {
                         }
                     }
                 }
+                
+                // Synchroniser le state global du panier si une vidéo vient de se terminer
+                // Cela évite d'avoir des données périmées ("stale data") à la prochaine réouverture de la modale
+                if (statusChangedToCompleted) {
+                    const cartStore = useCartStore();
+                    cartStore.fetchCart();
+                }
+
                 // S'il n'y a plus aucun média en "PENDING/PROCESSING", on éteint la boucle
                 if (!needsPolling) {
                     this.stopPolling();

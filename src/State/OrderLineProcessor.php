@@ -65,9 +65,17 @@ class OrderLineProcessor implements ProcessorInterface
                 $lineTotal = $this->calculator->calculateLinePrice($data);
                 $data->setLineTotalAmount($lineTotal);
             }
+
+            // Recalcul complet de la commande parente
+            $order = $data->getOrder();
+            if ($order && $this->calculator) {
+                // S'assurer que la ligne fait bel et bien partie de la collection en mémoire pour le calcul
+                $order->addOrderLine($data);
+                $this->calculator->calculate($order);
+            }
         }
 
-        // On persiste la ligne
+        // On persiste la ligne (API Platform Flush l'EntityManager entier, donc la Commande parente sera aussi sauvegardée)
         $result = $this->persistProcessor->process($data, $operation, $uriVariables, $context);
         
         // Recalcul du parent après création

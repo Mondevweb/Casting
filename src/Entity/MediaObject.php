@@ -87,6 +87,7 @@ class MediaObject
     private ?MediaCategory $category = null;
 
     #[ORM\Column(nullable: true)]
+    #[Groups(['media_object:read', 'order:read', 'candidate:read'])]
     private ?int $duration = null; // En secondes (uniquement pour vidéos)
 
     // =========================================================================

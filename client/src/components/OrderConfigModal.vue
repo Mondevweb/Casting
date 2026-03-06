@@ -21,31 +21,49 @@
                     class="bg-indigo-50 p-4 rounded-lg flex justify-between items-start border border-indigo-100"
                 >
                     <div>
-                        <h3 class="font-bold text-indigo-900 text-lg">
-                            {{ service.serviceType?.name }}
-                        </h3>
-                        <p v-if="service.serviceType?.description" class="text-xs text-gray-500 mt-1 mb-1 max-w-sm">
-                            {{ service.serviceType.description }}
-                        </p>
-                        <p class="text-sm text-indigo-700 mt-1">
-                            Avec {{ professional?.firstName }}
-                            {{ professional?.lastName }}
+                        <div class="flex items-center gap-2">
+                            <h3 class="font-bold text-indigo-900 text-lg">
+                                {{ service.serviceType?.name }}
+                            </h3>
+                            <Button 
+                                :icon="showDetails ? 'pi pi-chevron-up' : 'pi pi-info-circle'" 
+                                class="p-button-rounded p-button-text p-button-sm p-button-secondary !w-8 !h-8" 
+                                @click="showDetails = !showDetails"
+                                v-tooltip.top="'Voir les détails et instructions'"
+                            />
+                        </div>
+                        
+                        <transition name="fade-slide">
+                            <p v-if="showDetails && service.serviceType?.description" class="text-xs text-gray-600 mt-2 mb-2 max-w-sm bg-indigo-50/50 p-2 rounded border border-indigo-100/50">
+                                {{ service.serviceType.description }}
+                            </p>
+                        </transition>
+                        
+                        <p class="text-sm text-indigo-700 mt-1 flex items-center gap-1.5">
+                            <i class="pi pi-user text-xs"></i>
+                            Avec {{ professional?.firstName }} {{ professional?.lastName }}
                         </p>
                     </div>
                     <div class="text-right flex flex-col items-end">
                         <span class="font-bold text-indigo-900 text-lg leading-none">{{ formatCurrency(service.basePrice) }}</span>
+                        
                         <!-- Variante de prix: Unité (Photos, Pages...) -->
                         <div v-if="service.serviceType?.discriminator === 'unit'" class="text-xs text-indigo-600 mt-1 text-right">
-                            <span class="opacity-80">pour {{ service.serviceType.baseQuantity }} {{ service.serviceType.unitName }}{{ service.serviceType.baseQuantity > 1 ? 's' : '' }}</span>
+                            <span class="opacity-80">
+                                Inclus : {{ service.serviceType.baseQuantity }} {{ service.serviceType.unitName }}{{ service.serviceType.baseQuantity > 1 ? 's' : '' }}
+                            </span>
                             <div v-if="service.supplementPrice > 0" class="font-semibold">
                                 puis {{ formatCurrency(service.supplementPrice) }} / supp.
                             </div>
                         </div>
+                        
                         <!-- Variante de prix: Durée (Audiodescription, Vidéos...) -->
                         <div v-else-if="service.serviceType?.discriminator === 'duration'" class="text-xs text-indigo-600 mt-1 text-right">
-                            <span class="opacity-80">pour {{ service.serviceType.baseDurationMin }} min</span>
+                            <span class="opacity-80">
+                                Inclus : {{ service.serviceType.baseDurationMin }} min
+                            </span>
                             <div v-if="service.supplementPrice > 0" class="font-semibold">
-                                puis {{ formatCurrency(service.supplementPrice) }} / {{ service.serviceType.durationStep }} min supp.
+                                puis {{ formatCurrency(service.supplementPrice) }} / minute supp.
                             </div>
                         </div>
                     </div>
@@ -53,10 +71,13 @@
 
                 <!-- Instructions optionnelles en haut pour meilleure UX -->
                 <div>
-                    <div v-if="service.serviceType?.instructionsHelp" class="text-sm text-indigo-700 bg-indigo-50 p-3 rounded-md mb-3 border border-indigo-100 flex items-start gap-2">
-                        <i class="pi pi-info-circle mt-0.5"></i>
-                        <span>{{ service.serviceType.instructionsHelp }}</span>
-                    </div>
+                    <transition name="fade-slide">
+                        <div v-if="showDetails && service.serviceType?.instructionsHelp" class="text-sm text-indigo-800 bg-indigo-100/70 p-3 rounded-md mb-3 border border-indigo-200 flex items-start gap-2 shadow-sm">
+                            <i class="pi pi-info-circle mt-0.5 text-indigo-500"></i>
+                            <span>{{ service.serviceType.instructionsHelp }}</span>
+                        </div>
+                    </transition>
+                    
                     <label
                         for="instructions"
                         class="block font-semibold text-gray-900 mb-2"
@@ -67,7 +88,7 @@
                         v-model="editorInstructions"
                         rows="3"
                         class="w-full"
-                        placeholder="Précisez ici vos attentes particulières pour le professionnel (ex: 'Pouvez-vous vous concentrer sur mon jeu d\'acteur à la 2ème minute ?')"
+                        placeholder="Précisez ici vos attentes particulières pour le professionnel..."
                     />
                 </div>
 
@@ -75,129 +96,148 @@
 
                 <!-- Upload de médias -->
                 <div>
-                    <label class="block font-semibold text-gray-900 mb-2"
-                        >Vos médias à analyser (Photos/Vidéos)</label
-                    >
-
-                    <!-- Liste Unifiée des Médias (Existants et Nouvellement Uploadés) -->
-                    <div v-if="existingMedias.length > 0" class="mb-4">
-                        <p class="text-sm text-gray-700 font-medium mb-2">
-                            Fichiers rattachés à cette prestation :
-                        </p>
-                        <ul class="space-y-2">
-                            <li
-                                v-for="(media, index) in existingMedias"
-                                :key="index"
-                                class="flex items-center justify-between bg-white border border-gray-200 p-2 rounded-md hover:bg-gray-50 transition-colors"
-                            >
-                                <div
-                                    class="flex items-center gap-3 overflow-hidden cursor-pointer flex-grow"
-                                    @click="openGallery(index)"
-                                >
-                                    <!-- Miniature selon le type de fichier -->
-                                    <div class="relative w-10 h-10 flex-shrink-0 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                                        <img
-                                            v-if="isImage(media.originalName || media.filePath)"
-                                            :src="baseApiUrl + '/uploads/media/' + media.filePath"
-                                            class="object-cover w-full h-full"
-                                            alt="Preview"
-                                        />
-                                        <!-- INDICATEUR DE TRANSCODAGE FFmpeg -->
-                                        <div v-else-if="media.transcodingStatus === 'PENDING' || media.transcodingStatus === 'PROCESSING'"
-                                            class="flex flex-col items-center justify-center w-full h-full bg-indigo-50"
-                                            title="La vidéo est en cours d'encodage sur le serveur..."
-                                        >
-                                            <i class="pi pi-spin pi-spinner text-indigo-500 text-lg"></i>
-                                        </div>
-                                        <!-- Miniature JPG générée par FFmpeg (Terminé) -->
-                                        <img
-                                            v-else-if="isVideo(media.originalName || media.filePath) && media.transcodingStatus === 'COMPLETED' && media.thumbnailPath"
-                                            :src="baseApiUrl + '/uploads/media/' + media.thumbnailPath"
-                                            class="object-cover w-full h-full"
-                                            alt="Video Thumbnail"
-                                        />
-                                        <!-- Miniature Vidéo HTML5 Native (Non concerné / Vieux MP4) -->
-                                        <video 
-                                            v-else-if="isVideo(media.originalName || media.filePath)" 
-                                            :src="baseApiUrl + '/uploads/media/' + (media.webFilePath || media.filePath) + '#t=0.5'" 
-                                            class="object-cover w-full h-full"
-                                            preload="metadata"
-                                            muted
-                                            playsinline
-                                        ></video>
-                                        <i v-else-if="isAudio(media.originalName || media.filePath)" class="pi pi-headphones text-orange-500 text-lg"></i>
-                                        <i v-else-if="isPdf(media.originalName || media.filePath)" class="pi pi-file-pdf text-red-500 text-lg"></i>
-                                        <i v-else class="pi pi-file text-gray-500 text-lg"></i>
-                                        
-                                        <!-- Overlay icône loupe -->
-                                        <div class="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                                            <i class="pi pi-search text-white text-xs"></i>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex flex-col">
-                                        <span class="text-sm font-semibold text-gray-700 truncate max-w-[200px]" :title="media.originalName || media.name">
-                                            {{ media.originalName || media.name || "Fichier sans nom" }}
-                                        </span>
-                                        <div class="flex items-center gap-2 mt-0.5">
-                                            <span v-if="media.isNew" class="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded font-medium">Nouveau</span>
-                                            <span v-if="media.transcodingStatus === 'PENDING' || media.transcodingStatus === 'PROCESSING'" class="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded font-medium truncate" title="Traitement de la compatibilité web">Conversion en cours...</span>
-                                            <span v-if="media.transcodingStatus === 'FAILED'" class="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded font-medium truncate" title="Le fichier n'a pas pu être optimisé pour le web">Format Original (Avertissement)</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <Button
-                                    icon="pi pi-trash"
-                                    class="p-button-danger p-button-text p-button-sm p-button-rounded ml-2"
-                                    @click="removeMedia(index)"
-                                    title="Retirer"
-                                />
-                            </li>
-                        </ul>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="block font-semibold text-gray-900">
+                            Vos médias à analyser
+                        </label>
+                        <span class="text-xs font-normal text-gray-500">Formats : {{ acceptedFileTypesLabel }}</span>
                     </div>
 
-                    <p class="text-sm text-gray-500 mb-3" v-if="!existingItem">
-                        Sélectionnez les fichiers que vous souhaitez soumettre
-                        au professionnel ({{ acceptedFileTypesLabel }}).
-                    </p>
-                    <p class="text-sm text-gray-500 mb-3" v-else>
-                        Ajouter de nouveaux fichiers à cette prestation ({{ acceptedFileTypesLabel }}) :
-                    </p>
-
-                    <FileUpload
-                        ref="fileUpload"
-                        name="file[]"
-                        :url="uploadUrl"
-                        :multiple="true"
-                        :accept="acceptedFileTypes"
-                        :maxFileSize="50000000"
-                        :auto="true"
-                        @upload="onUploadComplete"
-                        @error="onUploadError"
-                        @before-send="onBeforeSend"
-                        @select="filesSelected = true"
-                        @clear="filesSelected = false"
-                        :showUploadButton="false"
-                        :showCancelButton="false"
-                        chooseLabel="Ajouter des fichiers"
-                        chooseIcon="pi pi-cloud-upload"
-                        invalidFileSizeMessage="{0} : Fichier trop lourd, max {1}."
-                        invalidFileTypeMessage="{0} : Format de fichier non autorisé pour ce type de prestation."
-                        class="w-full custom-fileupload"
-                    >
-                        <!-- Remplacement de la zone Drop Native vide par un vide -->
-                        <template #empty>
-                            <span class="hidden"></span>
-                        </template>
-
-                        <!-- Surcharge de la vue PrimeVue des fichiers en transit pour masquer la liste redondante -->
-                        <template #content="{ files }">
-                            <div v-if="files.length > 0" class="py-4 flex flex-col items-center justify-center bg-blue-50 border border-blue-100 rounded-lg">
-                                <i class="pi pi-spin pi-spinner text-blue-500 text-2xl mb-2"></i>
-                                <span class="text-sm font-medium text-blue-800">Transfert de {{ files.length }} fichier(s) vers le serveur Internet...</span>
+                    <!-- Grille Unifiée des Médias -->
+                    <div class="mb-4">
+                        <div class="flex flex-wrap gap-4">
+                            <!-- Tuile Bouton d'Upload -->
+                            <div 
+                                class="relative w-24 h-24 rounded-lg shadow-sm border border-indigo-200 overflow-hidden bg-indigo-50 hover:bg-indigo-100 flex flex-col items-center justify-center cursor-pointer transition-colors flex-shrink-0 text-indigo-600 group" 
+                                @click="triggerUpload"
+                                v-tooltip.top="existingMedias.length > 0 ? 'Ajouter d\'autres fichiers' : 'Ajouter des fichiers'"
+                            >
+                                <template v-if="isUploading">
+                                    <div class="absolute bottom-0 left-0 h-full bg-indigo-200 transition-all duration-300 ease-out z-0" :style="{ width: uploadProgress + '%' }"></div>
+                                    <div class="z-10 flex flex-col items-center">
+                                        <i class="pi pi-cloud-upload text-2xl mb-1 animate-pulse text-indigo-700"></i>
+                                        <span class="text-[10px] font-bold text-center leading-tight px-1 uppercase text-indigo-800">{{ uploadProgress }}%</span>
+                                    </div>
+                                </template>
+                                <template v-else>
+                                    <i class="pi pi-plus text-3xl mb-1 group-hover:scale-110 transition-transform z-10"></i>
+                                    <span class="text-xs font-semibold text-center leading-tight px-1 uppercase tracking-wide z-10">Ajouter</span>
+                                </template>
                             </div>
-                        </template>
-                    </FileUpload>
+
+                            <div
+                                v-for="(media, index) in existingMedias"
+                                :key="index"
+                                class="relative w-24 h-24 rounded-lg shadow-sm border border-gray-200 overflow-hidden group bg-gray-100 flex-shrink-0 cursor-pointer"
+                                @click="openGallery(index)"
+                                :title="media.originalName || media.name"
+                            >
+                                <!-- Bouton de suppression flottant (visible au survol de la tuile complète) -->
+                                <button
+                                    @click.stop="removeMedia(index)"
+                                    class="absolute top-1 right-1 z-10 w-6 h-6 bg-white/90 hover:bg-red-50 hover:text-red-500 text-gray-600 rounded-full flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-all focus:outline-none"
+                                    title="Retirer"
+                                >
+                                    <i class="pi pi-times text-xs font-bold"></i>
+                                </button>
+                                
+                                <!-- Indicateur Nouveau (pastille) -->
+                                <div v-if="media.isNew" class="absolute top-1 left-1 z-10 w-2.5 h-2.5 bg-green-500 rounded-full shadow-sm" title="Nouveau fichier"></div>
+                                
+                                <!-- Indicateur Erreur (pastille) -->
+                                <div v-if="media.transcodingStatus === 'FAILED'" class="absolute top-1 left-1 z-10 w-2.5 h-2.5 bg-red-500 rounded-full shadow-sm" title="Erreur d'optimisation vidéo"></div>
+
+                                <!-- Miniature selon le type de fichier -->
+                                <div class="w-full h-full flex items-center justify-center">
+                                    <img
+                                        v-if="isImage(media.originalName || media.filePath)"
+                                        :src="baseApiUrl + '/uploads/media/' + media.filePath"
+                                        class="object-cover w-full h-full"
+                                        alt="Preview"
+                                    />
+                                    <!-- INDICATEUR DE TRANSCODAGE FFmpeg -->
+                                    <div v-else-if="media.transcodingStatus === 'PENDING' || media.transcodingStatus === 'PROCESSING'"
+                                        class="flex flex-col items-center justify-center w-full h-full bg-indigo-50 px-1 text-center"
+                                        title="La vidéo est en attente d'encodage sur le serveur..."
+                                    >
+                                        <i class="pi pi-spin pi-spinner text-indigo-500 text-xl mb-1"></i>
+                                        <span class="text-[9px] font-bold text-indigo-800 leading-tight uppercase">Traitement vidéo...</span>
+                                    </div>
+                                    <!-- Miniature JPG générée par FFmpeg (Terminé) -->
+                                    <img
+                                        v-else-if="isVideo(media.originalName || media.filePath) && media.transcodingStatus === 'COMPLETED' && media.thumbnailPath"
+                                        :src="baseApiUrl + '/uploads/media/' + media.thumbnailPath"
+                                        class="object-cover w-full h-full"
+                                        alt="Video Thumbnail"
+                                    />
+                                    <!-- Miniature Vidéo HTML5 Native (Non concerné / Vieux MP4) -->
+                                    <video 
+                                        v-else-if="isVideo(media.originalName || media.filePath)" 
+                                        :src="baseApiUrl + '/uploads/media/' + (media.webFilePath || media.filePath) + '#t=0.5'" 
+                                        class="object-cover w-full h-full"
+                                        preload="metadata"
+                                        muted
+                                        playsinline
+                                    ></video>
+                                    <i v-else-if="isAudio(media.originalName || media.filePath)" class="pi pi-headphones text-orange-500 text-2xl"></i>
+                                    <i v-else-if="isPdf(media.originalName || media.filePath)" class="pi pi-file-pdf text-red-500 text-2xl"></i>
+                                    <i v-else class="pi pi-file text-gray-500 text-2xl"></i>
+                                </div>
+                                
+                                <!-- Overlay icône loupe au survol -->
+                                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                    <i class="pi pi-search text-white text-xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Récapitulatif Volume/Durée Uploadé -->
+                    <transition name="fade-slide">
+                        <div v-if="existingMedias.length > 0" class="mb-4 bg-gray-50 p-3 rounded-md border border-gray-200 flex justify-between items-center">
+                            <span class="text-sm font-medium text-gray-700">Total sélectionné :</span>
+                            <div class="text-right">
+                                <span v-if="service.serviceType?.discriminator === 'unit'" class="font-bold text-indigo-700">
+                                    {{ existingMedias.length }} fichier{{ existingMedias.length > 1 ? 's' : '' }}
+                                </span>
+                                <span v-else-if="service.serviceType?.discriminator === 'duration'" class="font-bold text-indigo-700">
+                                    {{ formattedTotalDuration }}
+                                    <span class="text-xs font-normal text-gray-500 ml-1">({{ existingMedias.length }} fichier{{ existingMedias.length > 1 ? 's' : '' }})</span>
+                                </span>
+                            </div>
+                        </div>
+                    </transition>
+
+                    <div class="hidden">
+                        <FileUpload
+                            ref="fileUpload"
+                            name="file[]"
+                            :url="uploadUrl"
+                            :multiple="true"
+                            :accept="acceptedFileTypes"
+                            :maxFileSize="50000000"
+                            :auto="true"
+                            @upload="onUploadComplete"
+                            @error="onUploadError"
+                            @before-send="onBeforeSend"
+                            @progress="onUploadProgress"
+                            @select="filesSelected = true"
+                            @clear="filesSelected = false"
+                            :showUploadButton="false"
+                            :showCancelButton="false"
+                            class="w-full custom-fileupload"
+                        >
+                            <template #header>
+                                <span class="hidden"></span>
+                            </template>
+                            <template #empty>
+                                <span class="hidden"></span>
+                            </template>
+                            <template #content="{ files }">
+                                <span class="hidden"></span>
+                            </template>
+                        </FileUpload>
+                    </div>
                 </div>
 
                 <!-- (Instructions transférées en haut) -->
@@ -215,7 +255,7 @@
                             >Total estimé</span
                         >
                         <span class="text-2xl font-bold text-gray-900">{{
-                            formatCurrency(service.basePrice)
+                            formatCurrency(dynamicEstimatedPrice)
                         }}</span>
                     </div>
                     <div class="flex items-center gap-4">
@@ -295,6 +335,11 @@ export default {
     data() {
         return {
             filesSelected: false,
+            showDetails: false, // Collapse state for description & instructions
+            
+            // Upload progress state
+            isUploading: false,
+            uploadProgress: 0,
 
             // Gallery state
             isGalleryVisible: false,
@@ -372,6 +417,67 @@ export default {
         combinedMedias() {
              return this.existingMedias;
         },
+        dynamicEstimatedPrice() {
+            if (!this.service) return 0;
+            
+            const basePrice = this.service.basePrice || 0;
+            const supplementPrice = this.service.supplementPrice || 0;
+            const discriminator = this.service.serviceType?.discriminator;
+            const mediaCount = this.existingMedias.length;
+
+            if (mediaCount === 0) return basePrice;
+
+            if (discriminator === 'unit') {
+                const baseQty = this.service.serviceType?.baseQuantity || 1;
+                const extraQty = Math.max(0, mediaCount - baseQty);
+                return basePrice + (extraQty * supplementPrice);
+            }
+
+            if (discriminator === 'duration') {
+                // Front-end approximation for duration. 
+                // Actual calculation happens on backend using media duration metadata.
+                const totalDurationSeconds = this.totalUploadedDurationSeconds;
+
+                const baseDurationMin = this.service.serviceType?.baseDurationMin || 0;
+                const baseDurationSeconds = baseDurationMin * 60;
+
+                if (totalDurationSeconds <= baseDurationSeconds) {
+                    return basePrice;
+                }
+
+                const diffSeconds = totalDurationSeconds - baseDurationSeconds;
+                const extraMinutes = Math.ceil(diffSeconds / 60);
+
+                return basePrice + (extraMinutes * supplementPrice);
+            }
+
+            return basePrice;
+        },
+        totalUploadedDurationSeconds() {
+            let total = 0;
+            this.existingMedias.forEach(m => {
+                // Now m.duration should exist from the API!
+                if (m.duration) {
+                    total += m.duration;
+                } 
+            });
+            return total;
+        },
+        formattedTotalDuration() {
+            const totalSecs = this.totalUploadedDurationSeconds;
+            if (totalSecs === 0) return '0 min';
+
+            const minutes = Math.floor(totalSecs / 60);
+            const seconds = totalSecs % 60;
+            
+            if (minutes === 0) {
+                return `${seconds} sec`;
+            } else if (seconds === 0) {
+                return `${minutes} min`;
+            } else {
+                return `${minutes} min ${seconds} sec`;
+            }
+        },
         canSubmit() {
             return true;
         },
@@ -405,7 +511,16 @@ export default {
         close() {
             this.$emit("update:visible", false);
         },
+        triggerUpload() {
+            if (this.$refs.fileUpload) {
+                // PrimeVue FileUpload cache le bouton file à l'intérieur
+                const fileInput = this.$refs.fileUpload.$el.querySelector('input[type="file"]');
+                if (fileInput) fileInput.click();
+            }
+        },
         onBeforeSend(event) {
+            this.isUploading = true;
+            this.uploadProgress = 0;
             // PrimeVue gère son propre XHR, il faut lui injecter le token à la volée !
             const token = this.authStore.token;
             if (token) {
@@ -444,10 +559,18 @@ export default {
                 }
             } catch (e) {
                 console.error("Format de reponse upload invalide", e);
+            } finally {
+                this.isUploading = false;
+                this.uploadProgress = 0;
             }
+        },
+        onUploadProgress(event) {
+            this.uploadProgress = event.progress;
         },
         onUploadError(event) {
             console.error("Erreur Upload", event);
+            this.isUploading = false;
+            this.uploadProgress = 0;
             alert(
                 "Une erreur est survenue lors de l'upload du fichier. Veuillez réessayer.",
             );
@@ -506,20 +629,41 @@ export default {
 
 /* Nettoyage visuel brut (supprime les bordures et fond natifs du composant) */
 .custom-fileupload.p-fileupload {
-    border: none;
-    background: transparent;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
-.custom-fileupload .p-fileupload-buttonbar {
-    border: none;
-    background: transparent;
-    padding: 0;
-}
+.custom-fileupload .p-fileupload-buttonbar,
 .custom-fileupload .p-fileupload-content {
-    border: none;
-    background: transparent;
-    padding: 0;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 .custom-fileupload .p-fileupload-content > span.hidden {
-    display: none;
+    display: none !important;
+}
+.custom-fileupload .p-button.p-fileupload-choose {
+    display: none !important;
+}
+
+/* Animations d'expansion pour les détails */
+.fade-slide-enter-active,
+.fade-slide-leave-active {
+  transition: all 0.3s ease-out;
+  max-height: 200px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.fade-slide-enter-from,
+.fade-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
 }
 </style>

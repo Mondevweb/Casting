@@ -65,10 +65,17 @@ final class ProcessVideoMessageHandler
             $frame->save($thumbnailPath);
             $mediaObject->setThumbnailPath($thumbnailFileName);
 
-            // 2. DÉTECTION DU CODEC D'ORIGINE
+            // 2. DÉTECTION DU CODEC D'ORIGINE ET DURÉE
             $ffprobe = $ffmpeg->getFFProbe();
             $streams = $ffprobe->streams($originalFilePath)->videos()->first();
             $codec = $streams->get('codec_name');
+            
+            // Extraction de la durée en secondes
+            $formatInfos = $ffprobe->format($originalFilePath);
+            if ($formatInfos->has('duration')) {
+                $duration = (int) round((float) $formatInfos->get('duration'));
+                $mediaObject->setDuration($duration);
+            }
 
             // 3. CONVERSION WEB (Sauf si c'est déjà du H.264)
             if ($codec === 'h264') {
