@@ -69,7 +69,7 @@ export const useOrderEditorStore = defineStore('orderEditor', {
 
         /**
          * Remove media from the optimistic array, remember its deletion to prevent ghosting,
-         * delete it from the server, and trigger auto-save.
+         * and trigger auto-save (which will PATCH the OrderLine to detach the media, without deleting it).
          */
         removeMedia(index) {
             const mediaObj = this.medias[index];
@@ -84,14 +84,10 @@ export const useOrderEditorStore = defineStore('orderEditor', {
                 this.deletedMediaIris.push(iri);
             }
 
-            // Physically delete from server (non-blocking)
-            if (iri) {
-                // Axios est configuré avec baseURL: '/api', on retire '/api/' de l'IRI
-                const endpoint = iri.startsWith('/api/') ? iri.substring(5) : (iri.startsWith('/api') ? iri.substring(4) : iri);
-                api.delete(endpoint)
-                    .then(() => console.log('Média supprimé physiquement du serveur'))
-                    .catch(e => console.error('Impossible de supprimer le média', e));
-            }
+            // Note : Contrairement à avant, on NE FAIT PLUS de api.delete() ici.
+            // Le fichier reste dans la médiathèque de l'utilisateur.
+            // Le fait d'avoir retiré l'élément de `this.medias` va déclencher un api.patch() sur l'OrderLine
+            // pour simplement détacher la relation media_object <-> order_line.
 
             this.queueAutoSave();
         },

@@ -73,7 +73,7 @@
                     </div>
                     
                     <video 
-                        v-else-if="isVideo(currentMedia.originalName || currentMedia.filePath)" 
+                        v-else-if="isVideo(currentMedia.originalName || currentMedia.filePath) && !currentMedia.bunnyVideoId" 
                         controls 
                         autoplay
                         :src="baseApiUrl + '/uploads/media/' + (currentMedia.webFilePath || currentMedia.filePath)"
@@ -81,6 +81,16 @@
                     >
                         Votre navigateur ne supporte pas la lecture vidéo.
                     </video>
+
+                    <!-- BUNNY.NET STREAM PLAYER -->
+                    <iframe
+                        v-else-if="currentMedia.bunnyVideoId"
+                        :src="'https://iframe.mediadelivery.net/embed/' + bunnyLibraryId + '/' + currentMedia.bunnyVideoId + '?autoplay=true'"
+                        loading="lazy"
+                        class="border-0 w-[90vw] md:w-[70vw] h-[60vh] max-h-full rounded-md shadow-2xl"
+                        allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;"
+                        allowfullscreen="true"
+                    ></iframe>
 
                     <!-- PDF / AUTRE -->
                     <div v-else class="bg-white rounded-lg p-8 w-[90vw] md:w-[60vw] max-h-full flex flex-col shadow-2xl relative">
@@ -166,6 +176,7 @@ export default {
         return {
             currentMediaIndex: this.initialIndex,
             baseApiUrl: API_BASE_URL,
+            bunnyLibraryId: import.meta.env.VITE_BUNNY_STREAM_LIBRARY_ID || '612946',
         };
     },
     computed: {

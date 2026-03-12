@@ -11,7 +11,7 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Doctrine\ORM\Mapping as ORM;
-use App\Enum\MediaCategory;
+
 use App\Enum\TranscodingStatus;
 use Doctrine\DBAL\Types\Types;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -23,14 +23,16 @@ use App\Repository\MediaObjectRepository;
     types: ['https://schema.org/MediaObject'],
     operations: [
         new Get(),
-        new GetCollection(),
+        new GetCollection(order: ['createdAt' => 'DESC']),
         new Post(
             controller: \App\Controller\CreateMediaObjectAction::class, 
             deserialize: false, 
             validate: false,
             inputFormats: ['multipart' => ['multipart/form-data']]
         ),
-        new Delete()
+        new Delete(
+            processor: \App\State\MediaObjectRemoveProcessor::class
+        )
     ],
     normalizationContext: ['groups' => ['media_object:read']]
 )]
@@ -82,9 +84,12 @@ class MediaObject
     // CATÉGORISATION (Source 79, 80)
     // =========================================================================
 
-    #[ORM\Column(length: 255, enumType: MediaCategory::class)]
-    #[Assert\NotNull]
-    private ?MediaCategory $category = null;
+    
+
+    #[ORM\ManyToOne(targetEntity: AbstractServiceType::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    #[Groups(['media_object:read', 'media_object:write', 'order:read', 'candidate:read'])]
+    private ?AbstractServiceType $serviceType = null;
 
     #[ORM\Column(nullable: true)]
     #[Groups(['media_object:read', 'order:read', 'candidate:read'])]
@@ -189,14 +194,16 @@ class MediaObject
         return $this;
     }
 
-    public function getCategory(): ?MediaCategory
+    
+
+    public function getServiceType(): ?AbstractServiceType
     {
-        return $this->category;
+        return $this->serviceType;
     }
 
-    public function setCategory(MediaCategory $category): static
+    public function setServiceType(?AbstractServiceType $serviceType): static
     {
-        $this->category = $category;
+        $this->serviceType = $serviceType;
         return $this;
     }
 
@@ -268,6 +275,10 @@ class MediaObject
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['media_object:read', 'order:read', 'candidate:read'])]
+    private ?string $bunnyVideoId = null;
+
     public function setFile(?File $file = null): void
     {
         $this->file = $file;
@@ -280,5 +291,17 @@ class MediaObject
     public function getFile(): ?File
     {
         return $this->file;
+    }
+
+    public function getBunnyVideoId(): ?string
+    {
+        return $this->bunnyVideoId;
+    }
+
+    public function setBunnyVideoId(?string $bunnyVideoId): static
+    {
+        $this->bunnyVideoId = $bunnyVideoId;
+
+        return $this;
     }
 }

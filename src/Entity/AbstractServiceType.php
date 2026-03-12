@@ -20,6 +20,7 @@ use Doctrine\Common\Collections\Collection;
     'duration' => DurationServiceType::class
 ])]
 #[ApiResource(
+    shortName: 'ServiceType',
     normalizationContext: ['groups' => ['service:read']],
     operations: [
         new Get(),

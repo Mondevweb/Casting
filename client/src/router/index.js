@@ -39,6 +39,12 @@ const router = createRouter({
       component: () => import('../views/DashboardView.vue') // To be created
     },
     {
+      path: '/dashboard/mediatheque',
+      name: 'mediatheque',
+      meta: { requiresAuth: true },
+      component: () => import('../views/dashboard/MediaLibraryView.vue')
+    },
+    {
       path: '/catalog',
       name: 'catalog',
       meta: { requiresAuth: true },

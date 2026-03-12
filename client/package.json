@@ -13,9 +13,11 @@
   "dependencies": {
     "@primevue/themes": "^4.5.4",
     "axios": "^1.13.4",
+    "pdfjs-dist": "^3.11.174",
     "pinia": "^2.1.7",
     "primeicons": "^7.0.0",
     "primevue": "^4.5.4",
+    "tus-js-client": "^4.3.1",
     "vue": "^3.4.29",
     "vue-router": "^4.3.3"
   },

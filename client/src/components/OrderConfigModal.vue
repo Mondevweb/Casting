@@ -94,44 +94,84 @@
 
                 <hr class="border-gray-200" />
 
-                <!-- Upload de médias -->
+                <!-- Ajout de médias depuis Médiathèque ou PC -->
                 <div>
                     <div class="flex items-center justify-between mb-2">
                         <label class="block font-semibold text-gray-900">
-                            Vos médias à analyser
+                            Ajouter des médias
                         </label>
                         <span class="text-xs font-normal text-gray-500">Formats : {{ acceptedFileTypesLabel }}</span>
                     </div>
 
-                    <!-- Grille Unifiée des Médias -->
-                    <div class="mb-4">
-                        <div class="flex flex-wrap gap-4">
-                            <!-- Tuile Bouton d'Upload -->
-                            <div 
-                                class="relative w-24 h-24 rounded-lg shadow-sm border border-indigo-200 overflow-hidden bg-indigo-50 hover:bg-indigo-100 flex flex-col items-center justify-center cursor-pointer transition-colors flex-shrink-0 text-indigo-600 group" 
-                                @click="triggerUpload"
-                                v-tooltip.top="existingMedias.length > 0 ? 'Ajouter d\'autres fichiers' : 'Ajouter des fichiers'"
-                            >
-                                <template v-if="isUploading">
-                                    <div class="absolute bottom-0 left-0 h-full bg-indigo-200 transition-all duration-300 ease-out z-0" :style="{ width: uploadProgress + '%' }"></div>
-                                    <div class="z-10 flex flex-col items-center">
-                                        <i class="pi pi-cloud-upload text-2xl mb-1 animate-pulse text-indigo-700"></i>
-                                        <span class="text-[10px] font-bold text-center leading-tight px-1 uppercase text-indigo-800">{{ uploadProgress }}%</span>
+                    <Tabs v-model:value="activeAddTab" class="mb-6">
+                        <TabList>
+                            <Tab value="library"><i class="pi pi-folder-open mr-2"></i> Ma Médiathèque</Tab>
+                            <Tab value="upload"><i class="pi pi-cloud-upload mr-2"></i> Nouveau Fichier</Tab>
+                        </TabList>
+                        <TabPanels>
+                            <TabPanel value="library">
+                                <div v-if="libraryStore.loading" class="flex justify-center p-4"><i class="pi pi-spin pi-spinner text-indigo-600 text-2xl"></i></div>
+                                <div v-else-if="libraryMedias.length === 0" class="text-sm text-gray-500 text-center p-4 bg-gray-50 rounded border">
+                                    Aucun média disponible dans votre médiathèque pour ce type de prestation.
+                                </div>
+                                <div v-else class="flex flex-wrap gap-3 max-h-48 overflow-y-auto p-2">
+                                    <div v-for="media in libraryMedias" :key="media.id" 
+                                         @click="toggleLibraryMedia(media)"
+                                         :class="[
+                                            'relative w-20 h-20 rounded border overflow-hidden cursor-pointer transition-all flex items-center justify-center bg-gray-100 flex-shrink-0',
+                                            isMediaSelected(media) ? 'ring-2 ring-indigo-500 border-indigo-500 shadow-md' : 'border-gray-200 hover:border-indigo-300 opacity-90 hover:opacity-100'
+                                         ]">
+                                        <!-- Checkmark si sélectionné -->
+                                        <div v-if="isMediaSelected(media)" class="absolute top-1 right-1 z-20 bg-indigo-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
+                                            <i class="pi pi-check text-[10px] font-bold"></i>
+                                        </div>
+                                        
+                                        <!-- Thumbnail -->
+                                        <div class="w-full h-full flex items-center justify-center pointer-events-none">
+                                            <img v-if="media.thumbnailPath" :src="baseApiUrl + '/uploads/media/' + media.thumbnailPath" class="object-cover w-full h-full" />
+                                            <img v-else-if="isImage(media.originalName || media.filePath)" :src="baseApiUrl + '/uploads/media/' + media.filePath" class="object-cover w-full h-full" />
+                                            <video v-else-if="isVideo(media.originalName || media.filePath)" :src="baseApiUrl + '/uploads/media/' + (media.webFilePath || media.filePath) + '#t=0.5'" class="object-cover w-full h-full"></video>
+                                            <i v-else-if="isAudio(media.originalName || media.filePath)" class="pi pi-headphones text-orange-500 text-xl"></i>
+                                            <i v-else-if="isPdf(media.originalName || media.filePath)" class="pi pi-file-pdf text-red-500 text-xl"></i>
+                                            <i v-else class="pi pi-file text-gray-400 text-xl"></i>
+                                        </div>
                                     </div>
-                                </template>
-                                <template v-else>
-                                    <i class="pi pi-plus text-3xl mb-1 group-hover:scale-110 transition-transform z-10"></i>
-                                    <span class="text-xs font-semibold text-center leading-tight px-1 uppercase tracking-wide z-10">Ajouter</span>
-                                </template>
-                            </div>
+                                </div>
+                            </TabPanel>
+                            <TabPanel value="upload">
+                                <!-- Tuile Bouton d'Upload Historique (étendue) -->
+                                <div 
+                                    class="relative w-full h-24 rounded-lg shadow-sm border-2 border-dashed border-indigo-300 bg-indigo-50 hover:bg-indigo-100 flex flex-col items-center justify-center cursor-pointer transition-colors text-indigo-600 group" 
+                                    @click="triggerUpload"
+                                >
+                                    <template v-if="isUploading">
+                                        <div class="absolute bottom-0 left-0 h-full bg-indigo-200 transition-all duration-300 ease-out z-0" :style="{ width: uploadProgress + '%' }"></div>
+                                        <div class="z-10 flex flex-col items-center">
+                                            <i class="pi pi-cloud-upload text-3xl mb-1 animate-pulse text-indigo-700"></i>
+                                            <span class="text-xs font-bold text-center leading-tight px-1 uppercase text-indigo-800">{{ uploadProgress }}%</span>
+                                        </div>
+                                    </template>
+                                    <template v-else>
+                                        <i class="pi pi-plus text-3xl mb-1 group-hover:scale-110 transition-transform z-10"></i>
+                                        <span class="text-sm font-semibold text-center leading-tight px-1 uppercase tracking-wide z-10">Parcourir ou Glisser-Déposer</span>
+                                        <span class="text-[10px] text-indigo-500 z-10 mt-1">Sera aussi ajouté à votre médiathèque</span>
+                                    </template>
+                                </div>
+                            </TabPanel>
+                        </TabPanels>
+                    </Tabs>
 
-                            <div
-                                v-for="(media, index) in existingMedias"
-                                :key="index"
-                                class="relative w-24 h-24 rounded-lg shadow-sm border border-gray-200 overflow-hidden group bg-gray-100 flex-shrink-0 cursor-pointer"
-                                @click="openGallery(index)"
-                                :title="media.originalName || media.name"
-                            >
+                    <!-- Grille Séparée des Médias SOUMIS -->
+                    <div class="mb-4 bg-gray-50 border border-gray-100 rounded-lg p-4 shadow-inner">
+                        <label class="block font-semibold text-gray-900 mb-3">
+                            <i class="pi pi-receipt mr-1 text-indigo-500"></i> Sélection pour cette commande 
+                            <span v-if="existingMedias.length" class="text-sm font-normal text-indigo-600 ml-1">({{ existingMedias.length }})</span>
+                        </label>
+                        <div v-if="existingMedias.length === 0" class="p-6 text-center border-2 border-dashed border-gray-200 rounded-lg bg-white text-gray-500">
+                            Aucun média sélectionné. Piochez dans votre médiathèque ou uploadez-en un nouveau.
+                        </div>
+                        <div v-else class="flex flex-wrap gap-4">
+                            <div v-for="(media, index) in existingMedias" :key="index" class="relative w-24 h-24 rounded border border-indigo-200 overflow-hidden cursor-pointer group shadow-sm hover:shadow-md hover:border-indigo-400 bg-white" @click="openGallery(index)">
                                 <!-- Bouton de suppression flottant (visible au survol de la tuile complète) -->
                                 <button
                                     @click.stop="removeMedia(index)"
@@ -180,7 +220,10 @@
                                         playsinline
                                     ></video>
                                     <i v-else-if="isAudio(media.originalName || media.filePath)" class="pi pi-headphones text-orange-500 text-2xl"></i>
-                                    <i v-else-if="isPdf(media.originalName || media.filePath)" class="pi pi-file-pdf text-red-500 text-2xl"></i>
+                                    <PdfThumbnail 
+                                        v-else-if="isPdf(media.originalName || media.filePath)" 
+                                        :src="'/uploads/media/' + media.filePath" 
+                                    />
                                     <i v-else class="pi pi-file text-gray-500 text-2xl"></i>
                                 </div>
                                 
@@ -210,33 +253,20 @@
 
                     <div class="hidden">
                         <FileUpload
-                            ref="fileUpload"
+                            :ref="'fileUpload'"
+                            mode="basic"
                             name="file[]"
                             :url="uploadUrl"
                             :multiple="true"
                             :accept="acceptedFileTypes"
                             :maxFileSize="50000000"
                             :auto="true"
-                            @upload="onUploadComplete"
-                            @error="onUploadError"
-                            @before-send="onBeforeSend"
-                            @progress="onUploadProgress"
-                            @select="filesSelected = true"
-                            @clear="filesSelected = false"
+                            customUpload
+                            @uploader="handleCustomUpload"
                             :showUploadButton="false"
                             :showCancelButton="false"
-                            class="w-full custom-fileupload"
-                        >
-                            <template #header>
-                                <span class="hidden"></span>
-                            </template>
-                            <template #empty>
-                                <span class="hidden"></span>
-                            </template>
-                            <template #content="{ files }">
-                                <span class="hidden"></span>
-                            </template>
-                        </FileUpload>
+                            class="custom-fileupload"
+                        />
                     </div>
                 </div>
 
@@ -293,10 +323,19 @@ import Sidebar from "primevue/sidebar";
 import Button from "primevue/button";
 import FileUpload from "primevue/fileupload";
 import Textarea from "primevue/textarea";
+import Tabs from "primevue/tabs";
+import TabList from "primevue/tablist";
+import Tab from "primevue/tab";
+import TabPanels from "primevue/tabpanels";
+import TabPanel from "primevue/tabpanel";
 import MediaGallery from "./MediaGallery.vue";
+import PdfThumbnail from "./PdfThumbnail.vue";
+import { uploadVideoToBunny } from '@/services/bunnyUploadService';
+import axios from 'axios';
 import { useCartStore } from "@/stores/cart";
 import { useAuthStore } from "@/stores/auth";
 import { useOrderEditorStore } from "@/stores/orderEditor";
+import { useMediaLibraryStore } from "@/stores/mediaLibrary";
 import { API_BASE_URL } from "@/services/api";
 import { useToast } from "primevue/usetoast";
 
@@ -307,7 +346,13 @@ export default {
         Button,
         FileUpload,
         Textarea,
+        Tabs,
+        TabList,
+        Tab,
+        TabPanels,
+        TabPanel,
         MediaGallery,
+        PdfThumbnail,
     },
     setup() {
         const toast = useToast();
@@ -340,6 +385,9 @@ export default {
             // Upload progress state
             isUploading: false,
             uploadProgress: 0,
+            
+            // Tabs state
+            activeAddTab: "library",
 
             // Gallery state
             isGalleryVisible: false,
@@ -348,6 +396,7 @@ export default {
             cartStore: useCartStore(),
             authStore: useAuthStore(),
             editorStore: useOrderEditorStore(),
+            libraryStore: useMediaLibraryStore(),
             baseApiUrl: API_BASE_URL,
         };
     },
@@ -379,6 +428,10 @@ export default {
         },
         currentMedia() {
             return this.existingMedias[this.currentMediaIndex] || null;
+        },
+        libraryMedias() {
+            if (!this.service || !this.service.serviceType) return [];
+            return this.libraryStore.getMediaByServiceType(this.service.serviceType.id);
         },
         isAutoSaving() {
             return this.editorStore.isSaving;
@@ -491,6 +544,8 @@ export default {
                     document.body.style.overflow = "hidden";
                     // Init the editor store with relevant data
                     this.editorStore.init(this.service, this.professional, this.dynamicExistingItem);
+                    this.libraryStore.fetchLibrary();
+                    this.activeAddTab = "library";
                     
                     this.filesSelected = false;
                     this.isGalleryVisible = false;
@@ -518,62 +573,87 @@ export default {
                 if (fileInput) fileInput.click();
             }
         },
-        onBeforeSend(event) {
+        async handleCustomUpload(event) {
+            const files = event.files;
+            const token = this.authStore.token;
+
             this.isUploading = true;
             this.uploadProgress = 0;
-            // PrimeVue gère son propre XHR, il faut lui injecter le token à la volée !
-            const token = this.authStore.token;
-            if (token) {
-                event.xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-                // Force l'acceptation de json au retour
-                event.xhr.setRequestHeader("Accept", "application/ld+json");
-            }
-            // Le Backend attend une propriété "category", on fixe à "photo" temporairement ou indéfiniment.
-            event.formData.append("category", "photo");
-        },
-        onUploadComplete(event) {
-            // Clear FileUpload internal list so PrimeVue doesn't show its own thumbnails below
-            if (this.$refs.fileUpload) {
-                this.$refs.fileUpload.clear();
-                if (this.$refs.fileUpload.uploadedFiles) {
-                    this.$refs.fileUpload.uploadedFiles = [];
+
+            const serviceTypeId = this.service?.serviceType?.id;
+
+            for (let file of files) {
+                try {
+                    if (this.isVideo(file.name)) {
+                        // Upload vidéo via Bunny Stream en TUS
+                        const mediaObjectData = await uploadVideoToBunny(file, serviceTypeId, (progress) => {
+                            this.uploadProgress = progress;
+                        });
+                        this.processUploadedData(mediaObjectData);
+                    } else {
+                        // Upload Image / PDF via API Platform PHP
+                        const formData = new FormData();
+                        formData.append('file', file);
+                        if (serviceTypeId) {
+                            formData.append("serviceType", `/api/service_types/${serviceTypeId}`);
+                        }
+
+                        const res = await axios.post(this.uploadUrl, formData, {
+                            headers: {
+                                "Authorization": `Bearer ${token}`,
+                                "Accept": "application/ld+json",
+                                "Content-Type": "multipart/form-data"
+                            },
+                            onUploadProgress: (progressEvent) => {
+                                this.uploadProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                            }
+                        });
+                        this.processUploadedData(res.data);
+                    }
+                } catch (err) {
+                    console.error("Erreur Upload", err);
+                    alert("Une erreur est survenue lors de l'upload. Veuillez réessayer.");
+                    this.isUploading = false;
+                    this.uploadProgress = 0;
+                    return;
                 }
             }
 
-            // event.xhr.response contiendra le JSON de MediaObject
+            // Upload global fini
+            if (event && event.options && typeof event.options.clear === 'function') {
+                event.options.clear();
+            }
+            this.onUploadComplete();
+        },
+        
+        processUploadedData(fileList) {
             try {
-                const fileList = JSON.parse(event.xhr.response);
-
-                // Traitement pour supporter l'upload d'API Platform (retourne l'objet)
                 if (Array.isArray(fileList)) {
                     this.editorStore.addMedia(fileList);
                 } else if (fileList && typeof fileList === 'object') {
                     const finalObject = { ...fileList };
+                    // Pour le web, fallback originalName / filePath depuis le contentUrl de fichier non-vidéo
                     if (!finalObject.originalName && finalObject.contentUrl) {
                         finalObject.originalName = finalObject.contentUrl.split('/').pop();
                     }
                     if (!finalObject.filePath && finalObject.contentUrl) {
-                         finalObject.filePath = finalObject.contentUrl.split('/').pop();
+                        finalObject.filePath = finalObject.contentUrl.split('/').pop();
                     }
                     this.editorStore.addMedia(finalObject);
                 }
             } catch (e) {
                 console.error("Format de reponse upload invalide", e);
-            } finally {
-                this.isUploading = false;
-                this.uploadProgress = 0;
             }
         },
-        onUploadProgress(event) {
-            this.uploadProgress = event.progress;
-        },
-        onUploadError(event) {
-            console.error("Erreur Upload", event);
+
+        onUploadComplete() {
+            if (this.$refs.fileUpload) {
+                this.$refs.fileUpload.clear();
+            }
             this.isUploading = false;
             this.uploadProgress = 0;
-            alert(
-                "Une erreur est survenue lors de l'upload du fichier. Veuillez réessayer.",
-            );
+            this.libraryStore.fetchLibrary();
+            this.activeAddTab = "library";
         },
         
         // --- MÉTHODES GALLERY ---
@@ -599,6 +679,19 @@ export default {
         },
         removeMedia(index) {
             this.editorStore.removeMedia(index);
+        },
+        isMediaSelected(media) {
+            return this.existingMedias.some(m => m.id === media.id || String(m['@id']) === `/api/media_objects/${media.id}` || m === `/api/media_objects/${media.id}`);
+        },
+        toggleLibraryMedia(media) {
+            if (this.isMediaSelected(media)) {
+                const index = this.existingMedias.findIndex(m => m.id === media.id || String(m['@id']) === `/api/media_objects/${media.id}` || m === `/api/media_objects/${media.id}`);
+                if (index !== -1) {
+                    this.editorStore.removeMedia(index);
+                }
+            } else {
+                this.editorStore.addMedia(media);
+            }
         },
     },
 };

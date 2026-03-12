@@ -7,6 +7,7 @@ use ApiPlatform\Metadata\DeleteOperationInterface;
 use ApiPlatform\State\ProcessorInterface;
 use App\Entity\OrderLine;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Doctrine\ORM\EntityManagerInterface;
 
 class OrderLineProcessor implements ProcessorInterface
 {
@@ -15,18 +16,26 @@ class OrderLineProcessor implements ProcessorInterface
         private ProcessorInterface $persistProcessor,
         #[Autowire(service: 'api_platform.doctrine.orm.state.remove_processor')]
         private ProcessorInterface $removeProcessor,
-        private \App\Service\OrderPriceCalculator $calculator
+        private \App\Service\OrderPriceCalculator $calculator,
+        private EntityManagerInterface $em
     ) {
     }
 
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): mixed
     {
+        $mediasToCheck = [];
+
         // 1. SUPPRESSION (DELETE)
         if ($operation instanceof DeleteOperationInterface) {
             $order = null;
-            if ($data instanceof OrderLine && $data->getOrder()) {
+            if ($data instanceof OrderLine) {
                 $order = $data->getOrder();
-                $order->removeOrderLine($data); // Retirer la ligne en mémoire pour le calcul
+                $order?->removeOrderLine($data); // Retirer la ligne en mémoire pour le calcul
+                
+                // Garder en mémoire tous les médias qui vont être détachés de cette ligne
+                foreach ($data->getMediaObjects() as $media) {
+                    $mediasToCheck[] = $media;
+                }
             }
 
             // Exécuter la vraie requête de suppression en base pour la ligne
@@ -44,12 +53,23 @@ class OrderLineProcessor implements ProcessorInterface
                 }
             }
 
+            // Exécution du nettoyage des orphelins (APRÈS le flush de la base de données)
+            $this->cleanupOrphanedMedias($mediasToCheck);
+
             return $result;
         }
 
         // 2. CRÉATION / MODIFICATION (POST / PATCH)
-        if ($data instanceof OrderLine) {
+        if ($data instanceof OrderLine && !($operation instanceof DeleteOperationInterface)) {
             
+            // Pour le nettoyage des orphelins : capture des médias retirés (pendant le PATCH de la collection)
+            $collection = $data->getMediaObjects();
+            if ($collection instanceof \Doctrine\ORM\PersistentCollection) {
+                foreach ($collection->getDeleteDiff() as $media) {
+                    $mediasToCheck[] = $media;
+                }
+            }
+
             // Si le ProService est renseigné, on assigne automatiquement le ServiceType
             if ($data->getService() && !$data->getServiceType()) {
                 $data->setServiceType($data->getService()->getServiceType());
@@ -78,6 +98,8 @@ class OrderLineProcessor implements ProcessorInterface
         // On persiste la ligne (API Platform Flush l'EntityManager entier, donc la Commande parente sera aussi sauvegardée)
         $result = $this->persistProcessor->process($data, $operation, $uriVariables, $context);
         
+        // Exécution du nettoyage des orphelins (APRÈS le flush API Platform)
+        $this->cleanupOrphanedMedias($mediasToCheck);
         // Recalcul du parent après création
         // DEBUG : Dump des IDS médias reçus avant persistance
         if ($data instanceof OrderLine) {
@@ -89,5 +111,49 @@ class OrderLineProcessor implements ProcessorInterface
         }
 
         return $result;
+    }
+
+    private function cleanupOrphanedMedias(array $mediasToCheck): void
+    {
+        if (empty($mediasToCheck)) {
+            return;
+        }
+
+        $needsFlush = false;
+
+        foreach ($mediasToCheck as $media) {
+            if ($media->getDeletedAt() !== null) {
+                // Le média a été "Soft Deleted" depuis la médiathèque.
+                // Vérifions s'il subsiste une autre commande qui l'utilise.
+                $count = $this->em->createQuery('SELECT COUNT(ol.id) FROM App\Entity\OrderLine ol JOIN ol.mediaObjects m WHERE m = :media')
+                    ->setParameter('media', $media)
+                    ->getSingleScalarResult();
+
+                if ($count == 0) {
+                    // Totalement orphelin et Soft Deleted -> Hard Delete.
+                    $evm = $this->em->getEventManager();
+                    $softDeleteListener = null;
+
+                    foreach ($evm->getListeners('onFlush') as $listener) {
+                        if ($listener instanceof \Gedmo\SoftDeleteable\SoftDeleteableListener) {
+                            $softDeleteListener = $listener;
+                            $evm->removeEventListener(['onFlush'], $listener);
+                            break;
+                        }
+                    }
+
+                    $this->em->remove($media);
+                    $needsFlush = true;
+
+                    if ($softDeleteListener) {
+                        $evm->addEventListener(['onFlush'], $softDeleteListener);
+                    }
+                }
+            }
+        }
+
+        if ($needsFlush) {
+            $this->em->flush();
+        }
     }
 }

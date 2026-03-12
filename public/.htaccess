@@ -59,6 +59,12 @@ DirectoryIndex index.php
     RewriteRule ^ %{ENV:BASE}/index.php [L]
 </IfModule>
 
+<IfModule mod_headers.c>
+    <FilesMatch "\.(pdf|jpg|jpeg|png|gif|mp4|webm|svg)$">
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+</IfModule>
+
 <IfModule !mod_rewrite.c>
     <IfModule mod_alias.c>
         # When mod_rewrite is not available, we instruct a temporary redirect of

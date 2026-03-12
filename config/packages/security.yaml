@@ -27,7 +27,13 @@ security:
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
 
-        # 2. Firewall pour l'API (Lecture du token)
+        # 2. Firewall pour les webhooks (Accès public, sécurité gérée dans le controller via la signature Hmac)
+        webhooks:
+            pattern: ^/api/webhooks
+            stateless: true
+            security: false
+
+        # 3. Firewall pour l'API (Lecture du token)
         api:
             pattern: ^/api
             stateless: true

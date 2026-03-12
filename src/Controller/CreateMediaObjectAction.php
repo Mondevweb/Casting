@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\Messenger\MessageBusInterface;
 use App\Message\ProcessVideoMessage;
+use App\Entity\AbstractServiceType;
 
 #[AsController]
 class CreateMediaObjectAction extends AbstractController
@@ -41,18 +42,20 @@ class CreateMediaObjectAction extends AbstractController
             $mediaObject = new MediaObject();
             $mediaObject->setFile($uploadedFile);
             
-            // Catégorie envoyée depuis PrimeVue
-            if ($request->request->has('category')) {
-                 $categoryEnum = \App\Enum\MediaCategory::tryFrom($request->request->get('category'));
-                 if ($categoryEnum) {
-                     $mediaObject->setCategory($categoryEnum);
-                 } else {
-                     $mediaObject->setCategory(\App\Enum\MediaCategory::PHOTO);
-                 }
-            } else {
-                 $mediaObject->setCategory(\App\Enum\MediaCategory::PHOTO);
+
+            // Liaison Service Type (Médiathèque)
+            if ($request->request->has('serviceType')) {
+                $serviceTypeId = $request->request->get('serviceType');
+                if (str_starts_with((string)$serviceTypeId, '/api/')) {
+                    $parts = explode('/', $serviceTypeId);
+                    $serviceTypeId = end($parts);
+                }
+                if ($serviceTypeId) {
+                    $serviceTypeRef = $em->getReference(AbstractServiceType::class, (int)$serviceTypeId);
+                    $mediaObject->setServiceType($serviceTypeRef);
+                }
             }
-            
+
             $mediaObject->setCandidate($candidate);
             
             // Détection du MimeType et appel asynchrone FFmpeg si Vidéo
